@@ -1,0 +1,4 @@
+# intermediate files (regenerate with scripts/); dist/ is committed for GitHub Pages
+build/
+__pycache__/
+*.pyc
