@@ -87,9 +87,21 @@ MapLibre のソース定義は次のとおりです。
 
 MapLibre GL JS 6.10.0 + pmtiles.js 4.5.0 で両ソースの表示を確認しています。
 
+## データの出典
+
+| 用途 | データ | 提供元 | 備考 |
+| --- | --- | --- | --- |
+| 建物タイル（`dist/`） | [3D 都市モデル（Project PLATEAU）千代田区（2025 年度）](https://www.geospatial.jp/ckan/dataset/plateau-13101-chiyoda-ku-2025) CityGML（`13101_chiyoda-ku_pref_2025_citygml_1_op`、2026 年 3 月 16 日版） | 国土交通省 Project PLATEAU（G 空間情報センターで配布） | 標準製品仕様書 第 5 版準拠。`udx/bldg` の建築物のうち `uro:city = 13101` の 12,558 棟を変換。政府標準利用規約 2.0 / CC BY 4.0 / ODC BY / ODbL のいずれかで利用可（[PLATEAU Site Policy](https://www.mlit.go.jp/plateau/site-policy/)） |
+| 背景地図 | [国土地理院 最適化ベクトルタイル](https://github.com/gsi-cyberjapan/optimal_bvmap)（PMTiles 版 `optimal_bvmap-v1.pmtiles`） | 国土地理院 | [国土地理院コンテンツ利用規約](https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html)に基づき利用。出典は「国土地理院最適化ベクトルタイル」 |
+| 背景地図のスタイル | `style/gsi-pale.json`（[gsi-cyberjapan/3dpc-3dtiles](https://github.com/gsi-cyberjapan/3dpc-3dtiles) の `public/styles/pale.json`） | 国土地理院 | 淡色地図風スタイル。glyphs と sprite は `gsi-cyberjapan.github.io/optimal_bvmap` を参照 |
+| 変換規則 | [indigo-lab/plateau-lod2-mvt](https://github.com/indigo-lab/plateau-lod2-mvt) | indigo-lab | ジオメトリ・高さの算出規則と tippecanoe オプションを踏襲（CC BY 4.0） |
+
+元データに含まれない建物があります（例: 霞が関 2 丁目付近の官公庁）。詳細は [Issue #3](https://github.com/shiwaku/plateau-lod2-mlt-pipeline/issues/3) を参照してください。
+
 ## ライセンス
 
 - 本リポジトリのコード（`scripts/`、`index.html`）は [MIT ライセンス](LICENSE)です。
-- 生成したタイルは CC BY 4.0 で提供します。利用の際は本リポジトリへのリンクを示してください。
+- 生成したタイル（`dist/`）は CC BY 4.0 で提供します。利用の際は本リポジトリへのリンクと、上記の出典（国土交通省 Project PLATEAU）を示してください。
 - 入力データは [Project PLATEAU](https://www.mlit.go.jp/plateau/) の 3D 都市モデル（国土交通省）を加工したものです。利用にあたっては [PLATEAU Site Policy](https://www.mlit.go.jp/plateau/site-policy/) を確認してください。
+- 背景地図の利用は[国土地理院コンテンツ利用規約](https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html)に従ってください。
 - 変換規則は [indigo-lab/plateau-lod2-mvt](https://github.com/indigo-lab/plateau-lod2-mvt)（CC BY 4.0）を参考にしています。
