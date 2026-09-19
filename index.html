@@ -3,40 +3,62 @@
 <head>
   <meta charset="UTF-8">
   <title>plateau-lod2-mlt-pipeline</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl.css">
   <!-- MapLibre GL JS 6.x ships as ES modules only; pmtiles.js keeps a UMD build. -->
   <script src="https://unpkg.com/pmtiles@4.5.0/dist/pmtiles.js"></script>
   <style>
-    html, body { margin: 0; height: 100%; }
+    html, body { margin: 0; height: 100%; overscroll-behavior: none; }
     #map { position: absolute; inset: 0; }
     #panel {
       position: absolute; top: 10px; left: 10px; z-index: 1;
       background: rgba(255,255,255,.92); color: #222; font: 13px/1.5 system-ui, sans-serif;
-      padding: 10px 12px; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.3); max-width: 300px;
+      border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.3); max-width: 300px;
     }
-    #panel h1 { font-size: 14px; margin: 0 0 6px; }
-    #panel label { display: block; cursor: pointer; }
+    #panel summary {
+      list-style: none; cursor: pointer; font-weight: 600; font-size: 14px; padding: 8px 12px;
+      display: flex; align-items: center; gap: 8px; user-select: none;
+    }
+    #panel summary::-webkit-details-marker { display: none; }
+    #panel summary::after { content: '▾'; margin-left: auto; color: #666; transition: transform .15s; }
+    #panel details:not([open]) summary::after { transform: rotate(-90deg); }
+    #panel .body { padding: 0 12px 10px; }
+    #panel label { display: block; cursor: pointer; padding: 2px 0; }
+    #panel input[type=radio], #panel input[type=checkbox] { width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px; }
     #panel hr { border: 0; border-top: 1px solid #ccc; margin: 8px 0; }
     #stats { color: #555; font-size: 12px; white-space: pre-line; }
     #panel a { color: #1d508e; }
+    /* phones: full-width sheet at the top, collapsed by default (see script) */
+    @media (max-width: 600px) {
+      #panel {
+        top: 0; left: 0; right: 0; max-width: none; border-radius: 0 0 8px 8px;
+        padding-top: env(safe-area-inset-top);
+      }
+      #panel .body { max-height: 55vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+      #panel label { padding: 6px 0; }
+      .maplibregl-ctrl-top-right { top: calc(env(safe-area-inset-top) + 46px); }
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <div id="panel">
-    <h1>plateau-lod2-mlt-pipeline</h1>
-    <div id="sources"></div>
-    <hr>
-    <label><input type="checkbox" id="byLod"> LOD 別に色分け（青 = LOD2 屋根面、橙 = LOD1 屋根伏せ）</label>
-    <hr>
-    <div id="stats"></div>
-    <hr>
-    <div style="font-size:12px">
-      データ: <a href="https://www.geospatial.jp/ckan/dataset/plateau-13101-chiyoda-ku-2025" target="_blank" rel="noopener">PLATEAU 千代田区 2025</a><br>
-      変換規則: <a href="https://github.com/indigo-lab/plateau-lod2-mvt" target="_blank" rel="noopener">indigo-lab/plateau-lod2-mvt</a> 準拠<br>
-      背景: <a href="https://github.com/gsi-cyberjapan/optimal_bvmap" target="_blank" rel="noopener">国土地理院 最適化ベクトルタイル</a>（淡色地図風スタイル）
-    </div>
+    <details id="panelDetails" open>
+      <summary>plateau-lod2-mlt-pipeline</summary>
+      <div class="body">
+        <div id="sources"></div>
+        <hr>
+        <label><input type="checkbox" id="byLod"> LOD 別に色分け（青 = LOD2 屋根面、橙 = LOD1 屋根伏せ）</label>
+        <hr>
+        <div id="stats"></div>
+        <hr>
+        <div style="font-size:12px">
+          データ: <a href="https://www.geospatial.jp/ckan/dataset/plateau-13101-chiyoda-ku-2025" target="_blank" rel="noopener">PLATEAU 千代田区 2025</a><br>
+          変換規則: <a href="https://github.com/indigo-lab/plateau-lod2-mvt" target="_blank" rel="noopener">indigo-lab/plateau-lod2-mvt</a> 準拠<br>
+          背景: <a href="https://github.com/gsi-cyberjapan/optimal_bvmap" target="_blank" rel="noopener">国土地理院 最適化ベクトルタイル</a>（淡色地図風スタイル）
+        </div>
+      </div>
+    </details>
   </div>
 
   <script type="module">
@@ -109,7 +131,18 @@
       maxPitch: 75,
     });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }));
+    map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true }));
+    map.touchZoomRotate.enableRotation();  // two-finger rotate / pitch on touch devices
     window.map = map;  // for debugging in the console
+
+    // On phones start with the panel collapsed so the map is visible; remember the user's choice.
+    const details = document.getElementById('panelDetails');
+    const isPhone = window.matchMedia('(max-width: 600px)').matches;
+    try {
+      const saved = localStorage.getItem('panelOpen');
+      details.open = saved !== null ? saved === '1' : !isPhone;
+    } catch (_) { details.open = !isPhone; }
+    details.addEventListener('toggle', () => { try { localStorage.setItem('panelOpen', details.open ? '1' : '0'); } catch (_) {} });
 
     // --- UI -----------------------------------------------------------------
     const sourcesDiv = document.getElementById('sources');
