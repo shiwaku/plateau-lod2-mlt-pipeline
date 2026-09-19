@@ -56,10 +56,6 @@
         label: 'MVT / PMTiles',
         source: { type: 'vector', url: `pmtiles://${BASE}/${NAME}.mvt.pmtiles` },
       },
-      'mlt-dir': {
-        label: 'MLT / {z}/{x}/{y}.mlt ディレクトリ',
-        source: { type: 'vector', encoding: 'mlt', tiles: [`${BASE}/${NAME}/{z}/{x}/{y}.mlt`], minzoom: 10, maxzoom: 16 },
-      },
     };
     const ATTRIBUTION = "<a href='https://github.com/indigo-lab/plateau-lod2-mvt'>plateau-lod2-mvt</a> の規則で <a href='https://www.mlit.go.jp/plateau/'>国土交通省 Project PLATEAU</a> のデータを加工して作成";
 
@@ -134,7 +130,7 @@
     const stats = { tiles: 0, bytes: 0, t0: performance.now() };
     const statsDiv = document.getElementById('stats');
     function isTileRequest(name) {
-      return name.includes(`/${NAME}.mlt.pmtiles`) || name.includes(`/${NAME}.mvt.pmtiles`) || /\.mlt(\?|$)/.test(name);
+      return name.includes(`/${NAME}.mlt.pmtiles`) || name.includes(`/${NAME}.mvt.pmtiles`);
     }
     const observer = new PerformanceObserver((list) => {
       for (const e of list.getEntries()) {
@@ -146,12 +142,10 @@
     });
     observer.observe({ type: 'resource', buffered: true });
     function render() {
-      const note = current === 'mlt-dir'
-        ? '(ディレクトリ配信のタイルは Worker が取得するためここでは計測できません。DevTools の Network を参照)'
-        : '(PMTiles は Range リクエスト単位。ソース切替でリセット)';
       statsDiv.textContent =
         `${SOURCES[current].label}\n` +
-        `リクエスト: ${stats.tiles}  転送量: ${(stats.bytes / 1024).toFixed(0)} KB\n` + note;
+        `リクエスト: ${stats.tiles}  転送量: ${(stats.bytes / 1024).toFixed(0)} KB\n` +
+        `(PMTiles は Range リクエスト単位。ソース切替でリセット)`;
     }
     render();
 

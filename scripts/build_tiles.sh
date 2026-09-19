@@ -1,32 +1,34 @@
 #!/usr/bin/env bash
 # Build MVT/MLT tiles from the NDJSON produced by citygml2geojson.py.
 #
-#   scripts/build_tiles.sh build/chiyoda-lod2.ndjson chiyoda-lod2 [--tessellate] [--no-dir] [--base-url URL]
+#   scripts/build_tiles.sh build/chiyoda-lod2.ndjson chiyoda-lod2 [--tessellate] [--dir] [--base-url URL]
 #
 # Outputs (in dist/):
 #   <name>.mvt.pmtiles        MVT in PMTiles (tippecanoe, gzip tiles)
 #   <name>.mlt.pmtiles        MLT in PMTiles (mlt convert, gzip tiles, tile_type = mlt)
+# Optional, with --dir (for clients that cannot read PMTiles):
 #   <name>/{z}/{x}/{y}.mlt    MLT directory for static hosting (uncompressed tiles)
-#   <name>/tiles.json         TileJSON for the directory ("encoding": "mlt")
+#   <name>/tiles.json         TileJSON for the directory ("encoding": "mlt"); set --base-url
 #
-# Requires: tippecanoe >= 2.17 (PMTiles output), mlt CLI (cargo install mlt), python3.
+# Requires: tippecanoe >= 2.17 (PMTiles output), mlt CLI (cargo install mlt), python3 (--dir only).
 # Run on Linux / macOS / WSL.  tippecanoe options follow indigo-lab/plateau-lod2-mvt
 # (-ad -an -Z10 -z16 -l bldg -ai) with the output switched from a directory to PMTiles.
 
 set -euo pipefail
 
-INPUT=${1:?usage: build_tiles.sh INPUT.ndjson NAME [--tessellate] [--no-dir] [--base-url URL]}
-NAME=${2:?usage: build_tiles.sh INPUT.ndjson NAME [--tessellate] [--no-dir] [--base-url URL]}
+INPUT=${1:?usage: build_tiles.sh INPUT.ndjson NAME [--tessellate] [--dir] [--base-url URL]}
+NAME=${2:?usage: build_tiles.sh INPUT.ndjson NAME [--tessellate] [--dir] [--base-url URL]}
 shift 2
 
 TESSELLATE=()
-MAKE_DIR=1
+MAKE_DIR=0
 BASE_URL="https://example.com/${NAME}"
 MINZOOM=${MINZOOM:-10}
 MAXZOOM=${MAXZOOM:-16}
 while [ $# -gt 0 ]; do
   case "$1" in
     --tessellate) TESSELLATE=(--tessellate) ;;
+    --dir) MAKE_DIR=1 ;;
     --no-dir) MAKE_DIR=0 ;;
     --base-url) BASE_URL=$2; shift ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
@@ -35,9 +37,10 @@ while [ $# -gt 0 ]; do
 done
 
 export PATH="$HOME/.cargo/bin:$PATH"
-for tool in tippecanoe mlt python3; do
+for tool in tippecanoe mlt; do
   command -v "$tool" >/dev/null || { echo "$tool not found" >&2; exit 1; }
 done
+[ "$MAKE_DIR" = 0 ] || command -v python3 >/dev/null || { echo "python3 not found (needed for --dir)" >&2; exit 1; }
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 DIST="$ROOT/dist"
@@ -55,20 +58,20 @@ TIPPE_OPTS=(
   -P
 )
 
-echo "== 1/4 tippecanoe -> $DIST/$NAME.mvt.pmtiles"
+echo "== 1/2 tippecanoe -> $DIST/$NAME.mvt.pmtiles"
 tippecanoe -o "$DIST/$NAME.mvt.pmtiles" "${TIPPE_OPTS[@]}" "$INPUT"
 
-echo "== 2/4 mlt convert -> $DIST/$NAME.mlt.pmtiles"
+echo "== 2/2 mlt convert -> $DIST/$NAME.mlt.pmtiles"
 mlt convert --tile-compression gzip "${TESSELLATE[@]}" "$DIST/$NAME.mvt.pmtiles" "$DIST/$NAME.mlt.pmtiles"
 
 if [ "$MAKE_DIR" = 1 ]; then
-  # mlt convert cannot write a directory from a PMTiles input, so tippecanoe is run
-  # once more with directory output (uncompressed MVT), which mlt convert re-encodes.
-  echo "== 3/4 tippecanoe -e -> $BUILD/${NAME}_mvt (uncompressed MVT directory)"
+  # Optional directory output.  mlt convert cannot write a directory from a PMTiles
+  # input, so tippecanoe is run once more with directory output (uncompressed MVT).
+  echo "== [--dir] tippecanoe -e -> $BUILD/${NAME}_mvt (uncompressed MVT directory)"
   rm -rf "$BUILD/${NAME}_mvt" "$DIST/$NAME"
   tippecanoe -e "$BUILD/${NAME}_mvt" --no-tile-compression "${TIPPE_OPTS[@]}" "$INPUT"
 
-  echo "== 4/4 mlt convert -> $DIST/$NAME/{z}/{x}/{y}.mlt"
+  echo "== [--dir] mlt convert -> $DIST/$NAME/{z}/{x}/{y}.mlt"
   mlt convert "${TESSELLATE[@]}" "$BUILD/${NAME}_mvt" "$DIST/$NAME"
 
   python3 - "$BUILD/${NAME}_mvt/metadata.json" "$DIST/$NAME/tiles.json" "$BASE_URL" "$NAME" <<'PY'

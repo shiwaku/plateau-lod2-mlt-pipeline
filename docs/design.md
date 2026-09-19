@@ -14,7 +14,7 @@ PLATEAU の CityGML（建築物 LOD2）から MapLibre Tile（MLT）と PMTiles 
 ### 1.1 目的
 
 - PLATEAU CityGML の `bldg:Building` のうち LOD2 が整備された建物は屋根面（`bldg:RoofSurface`）単位、それ以外は LOD0 屋根伏せ（`bldg:lod0RoofEdge`）単位のポリゴンに変換し、高さ属性を付与したベクトルタイルを作る。
-- タイルは MVT ではなく MLT（MapLibre Tile v1）を主形式とし、PMTiles コンテナと静的ディレクトリの両方で配信できるようにする。MVT 版の PMTiles も併せて出力し、比較・互換用途に使う。
+- タイルは MVT ではなく MLT（MapLibre Tile v1）を主形式とし、PMTiles コンテナで配信する。MVT 版の PMTiles も併せて出力し、比較・互換用途に使う。`{z}/{x}/{y}.mlt` ディレクトリ出力はオプション（`--dir`）に留める（8.4 節）。
 - MapLibre GL JS の `fill-extrusion` で indigo-lab 版と同等以上の「積み木調」3D 表示ができることを確認する。
 
 ### 1.2 成果物
@@ -22,12 +22,10 @@ PLATEAU の CityGML（建築物 LOD2）から MapLibre Tile（MLT）と PMTiles 
 | 区分 | 成果物 | 備考 |
 | --- | --- | --- |
 | 変換 | `scripts/citygml2geojson.py` | CityGML → GeoJSON（NDJSON）変換スクリプト（Python + lxml） |
-| ビルド | `scripts/build_tiles.sh` | tippecanoe → PMTiles(MVT) → mlt convert → PMTiles(MLT) / MLT ディレクトリを一括実行（WSL / Linux / macOS） |
+| ビルド | `scripts/build_tiles.sh` | tippecanoe → PMTiles(MVT) → mlt convert → PMTiles(MLT) を一括実行（WSL / Linux / macOS）。`--dir` で MLT ディレクトリと TileJSON も出力 |
 | タイル | `dist/<name>.mvt.pmtiles` | MVT を格納した PMTiles（tippecanoe 直接出力） |
 | タイル | `dist/<name>.mlt.pmtiles` | MLT を格納した PMTiles（tile_type = 0x06） |
-| タイル | `dist/tiles/{z}/{x}/{y}.mlt` | 静的ホスティング用 MLT ディレクトリ |
-| メタ | `dist/tiles.json` ほか | TileJSON（`"encoding": "mlt"`） |
-| ビューア | `index.html` | MapLibre GL JS + pmtiles.js のデモ（MVT/MLT、PMTiles/ディレクトリを切替） |
+| ビューア | `index.html` | MapLibre GL JS + pmtiles.js のデモ（MLT / MVT の PMTiles を切替） |
 | 文書 | `README.md`, `docs/design.md` | 利用者向け説明と本設計書 |
 
 ### 1.3 スコープ外
@@ -125,9 +123,9 @@ core:CityModel
 | 項目 | 値 |
 | --- | --- |
 | タイル形式 | MLT v1（主）、MVT（副） |
-| コンテナ | PMTiles v3（MLT: tile_type 0x06、MVT: 0x01）、および `{z}/{x}/{y}.mlt` ディレクトリ |
+| コンテナ | PMTiles v3（MLT: tile_type 0x06、MVT: 0x01）。オプションで `{z}/{x}/{y}.mlt` ディレクトリ |
 | ズーム | 10〜16（indigo-lab 版と同じ） |
-| タイル圧縮 | PMTiles 内は gzip。ディレクトリ配信の `.mlt` は非圧縮（`mlt convert --tile-compression none`） |
+| タイル圧縮 | PMTiles 内は gzip。ディレクトリ出力の `.mlt` は非圧縮 |
 | レイヤー | `bldg`（1 レイヤー） |
 | ジオメトリ | Polygon（屋根面 1 枚 = 1 フィーチャ、または屋根伏せ 1 面 = 1 フィーチャ） |
 | 座標系 | WGS84 / Web メルカトル（tippecanoe 既定） |
@@ -198,7 +196,7 @@ indigo-lab 版のルールを踏襲しつつ、面単位で持たせる。
 | ジオメトリは整数グリッド（extent 4096）で、ポリゴンの穴と MultiPolygon に対応 | 内周リングはそのまま保持できる。GeometryCollection は非対応だが使わない |
 | 事前テッセレーション（三角形インデックス）は任意 | `--tessellate` あり・なしでサイズと描画速度を比較する（8.1 節） |
 | v1 は 2D のみ。z 座標は v2 の計画項目 | 高さは属性 `z` として持つ（indigo-lab 版と同じ）。将来 v2 で z 座標に載せ替える余地がある |
-| 外側の gzip は「エンコーディング選択に影響させない」方針 | PMTiles 内は gzip、ディレクトリ配信は非圧縮で、MLT 自体の設定は変えない |
+| 外側の gzip は「エンコーディング選択に影響させない」方針 | PMTiles 内は gzip、ディレクトリ出力は非圧縮で、MLT 自体の設定は変えない |
 
 実装状況ページの要点（2026-09 時点）: 生成ツールは Planetiler 0.10 以降、Martin 1.3 以降（1.9 以降は MVT と MLT を相互変換して配信）、Rust CLI `mlt`。tippecanoe と Tilemaker は「近日対応」。QGIS プラグインで `.mlt` を直接開けるので、生成タイルの目視確認に使える。deck.gl 側は loaders.gl 4.4 以降が対応。
 
@@ -225,12 +223,12 @@ build/<name>.ndjson              … GeoJSON 1 行 1 フィーチャ（tippecano
    │                                   │  mlt convert --tile-compression gzip
    │                                   └─▶ dist/<name>.mlt.pmtiles … MLT / PMTiles（gzip、tile_type = mlt）
    │
-   └─ tippecanoe -e --no-tile-compression ▶ build/<name>_mvt/{z}/{x}/{y}.pbf（中間物）
+   └─ [--dir のみ] tippecanoe -e --no-tile-compression ▶ build/<name>_mvt/{z}/{x}/{y}.pbf（中間物）
                                        │  mlt convert
                                        └─▶ dist/<name>/{z}/{x}/{y}.mlt + tiles.json … MLT ディレクトリ（非圧縮）
 ```
 
-`mlt convert` は PMTiles / MBTiles 入力からはディレクトリを出力できない（PoC で確認）。そのためディレクトリ版は tippecanoe のディレクトリ出力を経由し、tippecanoe を 2 回実行する。建物 7 万面規模では tippecanoe は数秒で終わるため、この重複は許容する。
+`mlt convert` は PMTiles / MBTiles 入力からはディレクトリを出力できない（PoC で確認）。そのためディレクトリ版は tippecanoe のディレクトリ出力を経由し、tippecanoe を 2 回実行する。ディレクトリ版は既定ではオフにした（8.4 節）。
 
 ### 4.1 CityGML → GeoJSON（`scripts/citygml2geojson.py`）
 
@@ -275,7 +273,7 @@ tippecanoe -q -o dist/<name>.mvt.pmtiles --force \
   -P build/<name>.ndjson
 ```
 
-- indigo-lab 版の `-ad -an -Z10 -z16 -l bldg -ai` を踏襲。`-e dist` を `-o *.pmtiles` に置き換える。ディレクトリ版のための 2 回目の実行では `-e build/<name>_mvt --no-tile-compression` にする。
+- indigo-lab 版の `-ad -an -Z10 -z16 -l bldg -ai` を踏襲。`-e dist` を `-o *.pmtiles` に置き換える。`--dir` 指定時の 2 回目の実行では `-e build/<name>_mvt --no-tile-compression` にする。
 - 低ズーム（10〜15）では 500 KB 上限に収めるために小さい建物が間引かれる。上限を変える場合は `--maximum-tile-bytes`。
 - `-T` による型固定は保険。実際の型統一は整数属性にすることで担保する（3.2 節）。
 
@@ -285,7 +283,7 @@ Rust 版 CLI `mlt` v0.1.34（`cargo install mlt`、WSL に導入済み。rustc 1
 
 ```sh
 mlt convert --tile-compression gzip dist/<name>.mvt.pmtiles dist/<name>.mlt.pmtiles
-mlt convert build/<name>_mvt dist/<name>          # ディレクトリ → ディレクトリ（非圧縮 .mlt）
+mlt convert build/<name>_mvt dist/<name>          # --dir 時のみ。ディレクトリ → ディレクトリ（非圧縮 .mlt）
 ```
 
 - 入力: `.pmtiles` / `.mbtiles` / タイルディレクトリ。出力: `.pmtiles` / `.mbtiles` / ディレクトリ。ただし PMTiles / MBTiles 入力 → ディレクトリ出力は不可、`--tile-compression` は PMTiles / MBTiles → PMTiles のときのみ有効。
@@ -312,9 +310,9 @@ felt/tippecanoe には MLT 出力の要望（Issue #380、2026-01）があるが
     "attribution": "..."
   }
   ```
-  ディレクトリ配信の場合は `"tiles": ["https://<host>/tiles/{z}/{x}/{y}.mlt"]` にする。
-- レイヤーは indigo-lab 版の `fill-extrusion` をそのまま使う。`fill-extrusion-height: ["get", "z"]`、色は高さの 1 の位で塗り分け。`lod` による色分けをデバッグ用に用意する。
-- 画面上のトグルで MVT/MLT、PMTiles/ディレクトリを切り替え、ネットワーク転送量と読み込み時間を比較できるようにする（開発者ツールで確認）。
+  `--dir` で作ったディレクトリを使う場合は `"tiles": ["https://<host>/<name>/{z}/{x}/{y}.mlt"]`（絶対 URL）にする。
+- レイヤーは indigo-lab 版の `fill-extrusion` をそのまま使う。`fill-extrusion-height: ["*", ["get", "z_cm"], 0.01]`、色は高さの 1 の位で塗り分け。`lod` による色分けをデバッグ用に用意する。
+- 画面上のトグルで MLT / MVT の PMTiles を切り替え、Range リクエスト数と転送量を比較できるようにする。
 - 背景は地理院タイル淡色。出典表記に PLATEAU と本リポジトリを含める。
 - ローカル確認は Range リクエストに対応した静的サーバーが必要（PMTiles）。`npx serve` または `pmtiles serve` を使う。Python の `http.server` は Range 非対応なので使わない。
 
@@ -324,8 +322,8 @@ felt/tippecanoe には MLT 出力の要望（Issue #380、2026-01）があるが
 
 | 方法 | 対象 | 注意 |
 | --- | --- | --- |
-| GitHub Pages | `tiles/{z}/{x}/{y}.mlt` ディレクトリ | indigo-lab 版と同じ運用。ファイル数が多くなる（z16 で数万ファイル）。1 リポジトリ 1 GB 推奨の目安に注意 |
-| GitHub Pages | `*.pmtiles` | 1 ファイル 100 MB 制限。区単位なら収まる見込みだが超えたら R2 へ |
+| GitHub Pages | `*.pmtiles` | **採用**。Range リクエストに対応（206 で返ることを確認）。1 ファイル 100 MB 制限。区単位なら収まる。超えたら R2 へ |
+| GitHub Pages | `<name>/{z}/{x}/{y}.mlt` ディレクトリ（`--dir`） | indigo-lab 版と同じ運用。ファイル数が多くなる（複数区で数万ファイル）ため既定では作らない |
 | Cloudflare R2 / S3 | `*.pmtiles` | Range リクエストと CORS の設定が必要。大規模化時の本命 |
 
 ---
@@ -338,7 +336,7 @@ plateau-lod2-mlt/
 ├ docs/design.md         … 本書
 ├ scripts/
 │  ├ citygml2geojson.py  … CityGML → NDJSON
-│  ├ build_tiles.sh      … tippecanoe → PMTiles(MVT) → MLT（PMTiles / ディレクトリ）
+│  ├ build_tiles.sh      … tippecanoe → PMTiles(MVT) → PMTiles(MLT)（--dir でディレクトリも）
 │  └ verify.py           … 件数・属性・サイズの検証（8 節）
 ├ index.html             … デモビューア
 ├ build/                 … 中間生成物（git 管理外）
@@ -374,7 +372,7 @@ plateau-lod2-mlt/
 | NDJSON | 17.8 MB |
 | `chiyoda-lod2.mvt.pmtiles` | 5.9 MB（MVT gzip 11.3 MB 分） |
 | `chiyoda-lod2.mlt.pmtiles` | 3.9 MB（MLT gzip 4.2 MB 分）。tile_type = mlt、tile compression = gzip |
-| `chiyoda-lod2/{z}/{x}/{y}.mlt` | 107 ファイル、3.2 MB（z10: 1、z11: 2、z12: 4、z13: 4、z14: 8、z15: 23、z16: 65）。最大タイル 187 kB（z15） |
+| タイル数 | 107（z10: 1、z11: 2、z12: 4、z13: 4、z14: 8、z15: 23、z16: 65）。非圧縮 MLT の合計 3.2 MB、最大タイル 187 kB（z15）。`--dir` 出力で計測 |
 | 属性列 | `z_cm`、`lod` ともに MLT で `U32` 列。z16 タイル 1 枚で 1,863 フィーチャ、`z_cm` はすべて整数 |
 | TileJSON | `encoding: "mlt"`、`vector_layers.fields = { z_cm, lod }`、bounds / center は tippecanoe のメタデータから生成 |
 | GitHub Pages 制限 | PMTiles 1 ファイル 100 MB 制限に対して十分小さい。区単位なら問題なし |
@@ -390,14 +388,27 @@ MapLibre GL JS 6.10.0 + pmtiles.js 4.5.0 のビューア（`index.html`）で、
 | --- | --- |
 | MLT / PMTiles | 描画あり。`querySourceFeatures` 78,447 件、画面内描画 68,137 件。属性は `{ z_cm: 268, lod: 2 }` のように整数で取得できる。Range リクエスト 22 回、転送量 約 1.0 MB |
 | MVT / PMTiles | 描画あり（同じ見え方）。Range リクエスト 22 回、転送量 約 1.4 MB |
-| MLT / `{z}/{x}/{y}.mlt` ディレクトリ | 描画あり。`encoding: "mlt"` の `tiles` ソースとして読める。`querySourceFeatures` 53,418 件 |
+| MLT / `{z}/{x}/{y}.mlt` ディレクトリ（当時は既定出力） | 描画あり。`encoding: "mlt"` の `tiles` ソースとして読める。`querySourceFeatures` 53,418 件 |
 
 - 3 ソースでデコードエラーなし。同じ視野で MLT の転送量は MVT の約 70%。
 - 高層ビル（丸の内・大手町）は低層部と塔屋が別々の高さで立ち上がり、意図どおり。
 - ビューア側の注意点: `tiles` の URL は絶対 URL にする（MapLibre の Worker 内で解決されるため、相対パスは `Failed to parse URL` になる）。MapLibre 6 系は ES モジュール配布のみなので `<script type="module">` で読み込む。
 - 自動操作でのハマりどころ: タブが非表示（`document.visibilityState = hidden`）だと `requestAnimationFrame` が止まり、MapLibre はスタイルの読み込みすら行わない。確認時はタブを前面にする。
 
-未実施: `--tessellate` の比較、QGIS プラグインでの確認、GitHub Pages など実サーバーでの配信確認。
+未実施: `--tessellate` の比較、QGIS プラグインでの確認。
+
+GitHub Pages（<https://shiwaku.github.io/plateau-lod2-mlt-pipeline/>）では、index が 200、MLT PMTiles への Range リクエストが 206 で返ることを確認した。
+
+### 8.4 ディレクトリ出力を既定から外した判断（2026-09-19）
+
+3 ソースの表示確認後、`{z}/{x}/{y}.mlt` ディレクトリは既定の成果物から外し、`build_tiles.sh --dir` のオプションにした。理由は次のとおり。
+
+- MLT 版 PMTiles だけで静的配信（GitHub Pages を含む）が成立する。
+- ディレクトリ版のために tippecanoe を 2 回実行しており、ビルドが不必要に複雑になる。
+- タイルをファイル単位で git に入れると、対象を複数区に広げたときに z16 のファイル数が数千〜数万に膨らむ。
+- TileJSON のベース URL を配信先ごとに書き換える手間がなくなる。
+
+残す用途は、`pmtiles://` を扱えないクライアントへの直接配信、indigo-lab 版 / frogcat 版と同じ URL 形式での差し替え、CDN でのタイル単位キャッシュ。必要になったら `--dir --base-url` で生成する。
 
 ---
 
@@ -414,7 +425,7 @@ MapLibre GL JS 6.10.0 + pmtiles.js 4.5.0 のビューア（`index.html`）で、
 | 7 | uro 名前空間が版ごとに変わる（2023 年度 3.1、2025 年度 3.2） | ワイルドカードで扱う（2.3 節） |
 | 8 | LOD3 建物で `lod3MultiSurface` の屋根面を読むと LOD2 と二重に出る | `lod2MultiSurface` のみ読む（確認済み、2.2 節） |
 | 9 | ジオメトリ要素に `srsName` が無い | 座標順は EPSG:6697 固定とし、`--lonlat` で反転可能にする |
-| 10 | 千代田区は屋根面が 18 万枚あり、z16 のタイル数・ファイル数が多くなる | ディレクトリ配信は PoC 後にファイル数を見て判断。PMTiles を主配信形態とする |
+| 10 | 対象を広げると z16 のタイル数・ファイル数が多くなる | PMTiles を配信形態とし、ディレクトリ出力は `--dir` オプションに限定（8.4 節） |
 
 ---
 

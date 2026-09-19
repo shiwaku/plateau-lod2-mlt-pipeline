@@ -17,8 +17,8 @@
 | --- | --- |
 | `dist/<name>.mlt.pmtiles` | MLT を格納した PMTiles（tile_type = mlt、gzip） |
 | `dist/<name>.mvt.pmtiles` | MVT を格納した PMTiles（比較・互換用） |
-| `dist/<name>/{z}/{x}/{y}.mlt` | 静的ホスティング用の MLT ディレクトリ（非圧縮） |
-| `dist/<name>/tiles.json` | TileJSON（`"encoding": "mlt"`） |
+
+PMTiles を読めないクライアント向けに、`build_tiles.sh --dir` で `dist/<name>/{z}/{x}/{y}.mlt` ディレクトリと TileJSON も出力できます（既定ではオフ）。
 
 ### タイル仕様
 
@@ -46,8 +46,8 @@
 # 1. CityGML -> NDJSON（区コードで絞る。メッシュ単位のファイルには隣接区の建物も入っています）
 python scripts/citygml2geojson.py path/to/udx/bldg -o build/chiyoda-lod2.ndjson --city 13101
 
-# 2. NDJSON -> PMTiles(MVT) -> PMTiles(MLT) / MLT ディレクトリ
-bash scripts/build_tiles.sh build/chiyoda-lod2.ndjson chiyoda-lod2 --base-url https://<host>/chiyoda-lod2
+# 2. NDJSON -> PMTiles(MVT) -> PMTiles(MLT)
+bash scripts/build_tiles.sh build/chiyoda-lod2.ndjson chiyoda-lod2
 
 # 3. ローカル確認（PMTiles には Range リクエスト対応のサーバーが必要）
 npx serve .
@@ -58,7 +58,7 @@ npx serve .
 
 ## ビューア
 
-`index.html` は MapLibre GL JS 6.10 + pmtiles.js で、MLT / PMTiles、MVT / PMTiles、MLT ディレクトリの 3 ソースを切り替えて表示します。
+`index.html` は MapLibre GL JS 6.10 + pmtiles.js で、MLT / PMTiles と MVT / PMTiles を切り替えて表示します。
 `?base=https://<host>/path&name=chiyoda-lod2` でタイルの置き場所を指定できます。
 
 MapLibre のソース定義は次のとおりです。
@@ -80,11 +80,10 @@ MapLibre のソース定義は次のとおりです。
 | 建物 | 12,558 棟（LOD2 9,788 棟、屋根伏せフォールバック 2,770 棟） |
 | フィーチャ | 72,723 |
 | `chiyoda-lod2.mvt.pmtiles` | 5.9 MB |
-| `chiyoda-lod2.mlt.pmtiles` | 3.9 MB |
-| `chiyoda-lod2/` | 107 タイル、3.2 MB |
+| `chiyoda-lod2.mlt.pmtiles` | 3.9 MB（107 タイル） |
 | ビューアでの転送量（東京駅周辺 z15.5、同一視野） | MLT/PMTiles 約 1.0 MB、MVT/PMTiles 約 1.4 MB |
 
-MapLibre GL JS 6.10.0 + pmtiles.js 4.5.0 で 3 ソース（MLT/PMTiles、MVT/PMTiles、MLT ディレクトリ）の表示を確認しています。
+MapLibre GL JS 6.10.0 + pmtiles.js 4.5.0 で両ソースの表示を確認しています。
 
 ## ライセンス
 
