@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>plateau-lod2-mlt</title>
+  <title>plateau-lod2-mlt-pipeline</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl.css">
   <!-- MapLibre GL JS 6.x ships as ES modules only; pmtiles.js keeps a UMD build. -->
@@ -25,16 +25,17 @@
 <body>
   <div id="map"></div>
   <div id="panel">
-    <h1>plateau-lod2-mlt</h1>
+    <h1>plateau-lod2-mlt-pipeline</h1>
     <div id="sources"></div>
     <hr>
-    <label><input type="checkbox" id="byLod"> LOD 別に色分け（青 = LOD2 屋根面、橙 = LOD0 屋根伏せ）</label>
+    <label><input type="checkbox" id="byLod"> LOD 別に色分け（青 = LOD2 屋根面、橙 = LOD1 屋根伏せ）</label>
     <hr>
     <div id="stats"></div>
     <hr>
     <div style="font-size:12px">
       データ: <a href="https://www.geospatial.jp/ckan/dataset/plateau-13101-chiyoda-ku-2025" target="_blank" rel="noopener">PLATEAU 千代田区 2025</a><br>
-      変換規則: <a href="https://github.com/indigo-lab/plateau-lod2-mvt" target="_blank" rel="noopener">indigo-lab/plateau-lod2-mvt</a> 準拠
+      変換規則: <a href="https://github.com/indigo-lab/plateau-lod2-mvt" target="_blank" rel="noopener">indigo-lab/plateau-lod2-mvt</a> 準拠<br>
+      背景: <a href="https://github.com/gsi-cyberjapan/optimal_bvmap" target="_blank" rel="noopener">国土地理院 最適化ベクトルタイル</a>（淡色地図風スタイル）
     </div>
   </div>
 
@@ -42,8 +43,8 @@
     import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl.mjs';
 
     // Tile locations.  Override with ?base=https://host/path (no trailing slash) for remote hosting.
-    const params = new URLSearchParams(location.search);
     // Must be absolute: tile URLs are resolved inside MapLibre's worker, where relative paths fail.
+    const params = new URLSearchParams(location.search);
     const BASE = new URL((params.get('base') || './dist').replace(/\/$/, ''), location.href).href;
     const NAME = params.get('name') || 'chiyoda-lod2';
 
@@ -59,9 +60,14 @@
     };
     const ATTRIBUTION = "<a href='https://github.com/indigo-lab/plateau-lod2-mvt'>plateau-lod2-mvt</a> の規則で <a href='https://www.mlit.go.jp/plateau/'>国土交通省 Project PLATEAU</a> のデータを加工して作成";
 
+    // Base map: GSI optimal vector tiles (PMTiles) with the GSI "pale" style
+    // (style/gsi-pale.json, from gsi-cyberjapan/3dpc-3dtiles public/styles/pale.json).
+    const GSI_STYLE_URL = new URL('./style/gsi-pale.json', location.href).href;
+
     const protocol = new pmtiles.Protocol();
     maplibregl.addProtocol('pmtiles', protocol.tile);
 
+    // ---- our 3D building layer --------------------------------------------------
     // indigo-lab colour ramp: colour by the ones digit of the height in metres.
     const HEIGHT_M = ['*', ['get', 'z_cm'], 0.01];
     const COLOR_BY_HEIGHT = [
@@ -72,45 +78,38 @@
     ];
     const COLOR_BY_LOD = ['match', ['get', 'lod'], 2, '#1d508e', '#d95d2a'];
 
-    function buildStyle(sourceKey) {
-      const src = { ...SOURCES[sourceKey].source, attribution: ATTRIBUTION };
-      return {
-        version: 8,
-        glyphs: 'https://maps.gsi.go.jp/xyz/noto-jp/{fontstack}/{range}.pbf',
-        sources: {
-          pale: {
-            type: 'raster',
-            tiles: ['https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png'],
-            minzoom: 5, maxzoom: 18, tileSize: 256,
-            attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html'>地理院タイル</a>",
-          },
-          bldg: src,
+    let gsiStyle = null;   // fetched once
+    async function buildStyle(sourceKey) {
+      if (!gsiStyle) {
+        const res = await fetch(GSI_STYLE_URL);
+        if (!res.ok) throw new Error(`GSI style fetch failed: ${res.status}`);
+        gsiStyle = await res.json();
+      }
+      const base = JSON.parse(JSON.stringify(gsiStyle));
+      base.sources.bldg = { ...SOURCES[sourceKey].source, attribution: ATTRIBUTION };
+      base.layers.push({
+        id: 'fill-extrusion-bldg', type: 'fill-extrusion', source: 'bldg', 'source-layer': 'bldg',
+        minzoom: 10, maxzoom: 20,
+        filter: ['has', 'z_cm'],
+        paint: {
+          'fill-extrusion-color': document.getElementById('byLod').checked ? COLOR_BY_LOD : COLOR_BY_HEIGHT,
+          'fill-extrusion-height': HEIGHT_M,
+          'fill-extrusion-opacity': 0.95,
         },
-        layers: [
-          { id: 'pale', type: 'raster', source: 'pale', minzoom: 5, maxzoom: 20 },
-          {
-            id: 'fill-extrusion-bldg', type: 'fill-extrusion', source: 'bldg', 'source-layer': 'bldg',
-            minzoom: 10, maxzoom: 20,
-            filter: ['has', 'z_cm'],
-            paint: {
-              'fill-extrusion-color': document.getElementById('byLod').checked ? COLOR_BY_LOD : COLOR_BY_HEIGHT,
-              'fill-extrusion-height': HEIGHT_M,
-              'fill-extrusion-opacity': 0.95,
-            },
-          },
-        ],
-      };
+      });
+      return base;
     }
 
     let current = params.get('source') in SOURCES ? params.get('source') : 'mlt-pmtiles';
     const map = new maplibregl.Map({
       container: 'map',
-      style: buildStyle(current),
+      style: await buildStyle(current),
       center: [139.7648, 35.6812],   // 東京駅・丸の内
       zoom: 15.5, pitch: 60, bearing: -20, hash: true,
       maxPitch: 75,
     });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }));
+    window.map = map;  // for debugging in the console
 
     // --- UI -----------------------------------------------------------------
     const sourcesDiv = document.getElementById('sources');
@@ -126,8 +125,8 @@
       map.setPaintProperty('fill-extrusion-bldg', 'fill-extrusion-color', e.target.checked ? COLOR_BY_LOD : COLOR_BY_HEIGHT);
     });
 
-    // --- simple transfer statistics (tiles + bytes per source, via Resource Timing) ---
-    const stats = { tiles: 0, bytes: 0, t0: performance.now() };
+    // --- simple transfer statistics for the building PMTiles (via Resource Timing) ---
+    const stats = { tiles: 0, bytes: 0 };
     const statsDiv = document.getElementById('stats');
     function isTileRequest(name) {
       return name.includes(`/${NAME}.mlt.pmtiles`) || name.includes(`/${NAME}.mvt.pmtiles`);
@@ -144,20 +143,19 @@
     function render() {
       statsDiv.textContent =
         `${SOURCES[current].label}\n` +
-        `リクエスト: ${stats.tiles}  転送量: ${(stats.bytes / 1024).toFixed(0)} KB\n` +
+        `建物タイル リクエスト: ${stats.tiles}  転送量: ${(stats.bytes / 1024).toFixed(0)} KB\n` +
         `(PMTiles は Range リクエスト単位。ソース切替でリセット)`;
     }
     render();
 
-    function switchSource(key) {
+    async function switchSource(key) {
       current = key;
-      stats.tiles = 0; stats.bytes = 0; stats.t0 = performance.now();
+      stats.tiles = 0; stats.bytes = 0;
       performance.clearResourceTimings();
-      map.setStyle(buildStyle(key));
+      map.setStyle(await buildStyle(key));
       render();
     }
 
-    window.map = map;  // for debugging in the console
     map.on('error', (e) => {
       const err = e && e.error ? e.error : e;
       console.error('[map error]', err && err.message ? err.message : err, e && e.tile ? `tile ${e.tile.tileID.canonical.z}/${e.tile.tileID.canonical.x}/${e.tile.tileID.canonical.y}` : '', e && e.sourceId ? `source ${e.sourceId}` : '');

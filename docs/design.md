@@ -313,7 +313,7 @@ felt/tippecanoe には MLT 出力の要望（Issue #380、2026-01）があるが
   `--dir` で作ったディレクトリを使う場合は `"tiles": ["https://<host>/<name>/{z}/{x}/{y}.mlt"]`（絶対 URL）にする。
 - レイヤーは indigo-lab 版の `fill-extrusion` をそのまま使う。`fill-extrusion-height: ["*", ["get", "z_cm"], 0.01]`、色は高さの 1 の位で塗り分け。`lod` による色分けをデバッグ用に用意する。
 - 画面上のトグルで MLT / MVT の PMTiles を切り替え、Range リクエスト数と転送量を比較できるようにする。
-- 背景は地理院タイル淡色。出典表記に PLATEAU と本リポジトリを含める。
+- 背景は国土地理院 最適化ベクトルタイル（PMTiles 版 `optimal_bvmap-v1.pmtiles`）を淡色地図風スタイル（`style/gsi-pale.json`、gsi-cyberjapan/3dpc-3dtiles の `pale.json`）で描き、その上に建物レイヤーを追加する。当初はラスタの地理院タイル淡色地図だったが、2026-09-19 にベクトルへ変更した。出典表記に PLATEAU、国土地理院最適化ベクトルタイル、本リポジトリを含める。
 - ローカル確認は Range リクエストに対応した静的サーバーが必要（PMTiles）。`npx serve` または `pmtiles serve` を使う。Python の `http.server` は Range 非対応なので使わない。
 
 ---
@@ -339,6 +339,7 @@ plateau-lod2-mlt/
 │  ├ build_tiles.sh      … tippecanoe → PMTiles(MVT) → PMTiles(MLT)（--dir でディレクトリも）
 │  └ verify.py           … 件数・属性・サイズの検証（8 節）
 ├ index.html             … デモビューア
+├ style/gsi-pale.json    … 背景地図スタイル（地理院 最適化ベクトルタイル 淡色地図風）
 ├ build/                 … 中間生成物（git 管理外）
 └ dist/                  … タイル成果物（git 管理外。配信先へアップロード）
 ```

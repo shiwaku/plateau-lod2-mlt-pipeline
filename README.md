@@ -59,6 +59,8 @@ npx serve .
 ## ビューア
 
 `index.html` は MapLibre GL JS 6.10 + pmtiles.js で、MLT / PMTiles と MVT / PMTiles を切り替えて表示します。
+背景地図は[国土地理院 最適化ベクトルタイル](https://github.com/gsi-cyberjapan/optimal_bvmap)（PMTiles 版）で、淡色地図風スタイル `style/gsi-pale.json`
+（[gsi-cyberjapan/3dpc-3dtiles](https://github.com/gsi-cyberjapan/3dpc-3dtiles) の `public/styles/pale.json`）に建物レイヤーを重ねています。
 `?base=https://<host>/path&name=chiyoda-lod2` でタイルの置き場所を指定できます。
 
 MapLibre のソース定義は次のとおりです。
