@@ -57,6 +57,11 @@ TIPPE_OPTS=(
   --attribute-type=z_cm:int --attribute-type=lod:int
   -P
 )
+# Extra tippecanoe options for experiments, e.g. TIPPE_EXTRA="--attribute-type=zb_cm:int"
+if [ -n "${TIPPE_EXTRA:-}" ]; then
+  read -ra _extra <<< "$TIPPE_EXTRA"
+  TIPPE_OPTS+=("${_extra[@]}")
+fi
 
 echo "== 1/2 tippecanoe -> $DIST/$NAME.mvt.pmtiles"
 tippecanoe -o "$DIST/$NAME.mvt.pmtiles" "${TIPPE_OPTS[@]}" "$INPUT"
