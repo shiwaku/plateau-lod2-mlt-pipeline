@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>LOD3 / LOD4 を MLT にする実験 - plateau-lod2-mlt-pipeline</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl.css">
+  <script src="https://unpkg.com/pmtiles@4.5.0/dist/pmtiles.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; overscroll-behavior: none; }
+    #map { position: absolute; inset: 0; }
+    #panel {
+      position: absolute; top: 10px; left: 10px; z-index: 1;
+      background: rgba(255,255,255,.92); color: #222; font: 13px/1.5 system-ui, sans-serif;
+      border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.3); max-width: 320px;
+    }
+    #panel summary {
+      list-style: none; cursor: pointer; font-weight: 600; font-size: 14px; padding: 8px 12px;
+      display: flex; align-items: center; gap: 8px; user-select: none;
+    }
+    #panel summary::-webkit-details-marker { display: none; }
+    #panel summary::after { content: '▾'; margin-left: auto; color: #666; transition: transform .15s; }
+    #panel details:not([open]) summary::after { transform: rotate(-90deg); }
+    #panel .body { padding: 0 12px 10px; }
+    #panel label { display: block; cursor: pointer; padding: 2px 0; }
+    #panel input[type=radio], #panel input[type=checkbox] { width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px; }
+    #panel hr { border: 0; border-top: 1px solid #ccc; margin: 8px 0; }
+    #panel h4 { margin: 6px 0 2px; font-size: 12px; color: #555; }
+    #stats, #note { color: #555; font-size: 12px; white-space: pre-line; }
+    #legend span { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -2px; margin-right: 4px; }
+    #legend { font-size: 12px; line-height: 1.7; }
+    #panel a { color: #1d508e; }
+    @media (max-width: 600px) {
+      #panel { top: 0; left: 0; right: 0; max-width: none; border-radius: 0 0 8px 8px; padding-top: env(safe-area-inset-top); }
+      #panel .body { max-height: 55vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+      .maplibregl-ctrl-top-right { top: calc(env(safe-area-inset-top) + 46px); }
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="panel">
+    <details id="panelDetails" open>
+      <summary>LOD3 / LOD4 を MLT にする実験</summary>
+      <div class="body">
+        <div id="datasets"></div>
+        <hr>
+        <div id="sources"></div>
+        <hr>
+        <label><input type="checkbox" id="byKind" checked> 面の種類で色分け</label>
+        <div id="legend"></div>
+        <hr>
+        <div id="note"></div>
+        <hr>
+        <div id="stats"></div>
+        <hr>
+        <div style="font-size:12px">
+          面ごとに <code>zb_cm</code>（底面）と <code>z_cm</code>（天面）を持たせ、<code>fill-extrusion-base / -height</code> で描画。
+          詳細: <a href="https://github.com/shiwaku/plateau-lod2-mlt-pipeline/issues/4" target="_blank" rel="noopener">Issue #4</a> /
+          <a href="./index.html">LOD2 のビューアへ</a>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <script type="module">
+    import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl.mjs';
+
+    const params = new URLSearchParams(location.search);
+    const BASE = new URL((params.get('base') || './dist').replace(/\/$/, ''), location.href).href;
+
+    // Experimental tile sets built by scripts/citygml2geojson_surfaces.py + build_tiles.sh.
+    const DATASETS = {
+      'toranomon-lod3-roof':       { group: '虎ノ門 LOD3（港区 2023、102 棟）', label: '屋根面のみ（現行ルール）', center: [139.7520, 35.6662], zoom: 15.5 },
+      'toranomon-lod3-horizontal': { group: '虎ノ門 LOD3（港区 2023、102 棟）', label: '水平面すべて（段差押し出し）', center: [139.7520, 35.6662], zoom: 15.5 },
+      'toranomon-lod3-all':        { group: '虎ノ門 LOD3（港区 2023、102 棟）', label: '壁・開口部も投影', center: [139.7520, 35.6662], zoom: 15.5 },
+      'shinjuku-ubld-lod4-rooms':  { group: '新宿駅周辺 地下街 LOD4.1（新宿区 2023）', label: 'Room ごとの箱（最下面 = 0 で表示）', center: [139.7008, 35.6929], zoom: 16,
+                                     note: '地下街は標高 15〜45 m の絶対値で、MapLibre の押し出しは 0 未満を描けないため、構造物の最下面を 0 として地上に持ち上げて表示しています。' },
+      'takeshiba-lod4-roof':       { group: 'ポートシティ竹芝 LOD4（2022、1 棟）', label: '屋根面のみ（LOD2 の屋根）', center: [139.7610, 35.6551], zoom: 17 },
+      'takeshiba-lod4-horizontal': { group: 'ポートシティ竹芝 LOD4（2022、1 棟）', label: '水平面すべて（外殻 + 室）', center: [139.7610, 35.6551], zoom: 17 },
+      'takeshiba-lod4-all':        { group: 'ポートシティ竹芝 LOD4（2022、1 棟）', label: '壁・開口部も投影', center: [139.7610, 35.6551], zoom: 17 },
+      'hikifune-lod3-roof':        { group: '曳舟 LOD3（墨田区 2025、3 棟）', label: '屋根面のみ（現行ルール）', center: [139.8185, 35.7170], zoom: 16.5 },
+      'hikifune-lod3-horizontal':  { group: '曳舟 LOD3（墨田区 2025、3 棟）', label: '水平面すべて（段差押し出し）', center: [139.8185, 35.7170], zoom: 16.5 },
+      'hikifune-lod3-all':         { group: '曳舟 LOD3（墨田区 2025、3 棟）', label: '壁・開口部も投影', center: [139.8185, 35.7170], zoom: 16.5 },
+    };
+    let NAME = params.get('name') in DATASETS ? params.get('name') : 'toranomon-lod3-horizontal';
+
+    const SOURCES = {
+      'mlt-pmtiles': { label: 'MLT / PMTiles', make: (n) => ({ type: 'vector', encoding: 'mlt', url: `pmtiles://${BASE}/${n}.mlt.pmtiles` }) },
+      'mvt-pmtiles': { label: 'MVT / PMTiles', make: (n) => ({ type: 'vector', url: `pmtiles://${BASE}/${n}.mvt.pmtiles` }) },
+    };
+    let current = params.get('source') in SOURCES ? params.get('source') : 'mlt-pmtiles';
+    const ATTRIBUTION = "<a href='https://www.mlit.go.jp/plateau/'>国土交通省 Project PLATEAU</a> のデータを加工して作成";
+    const GSI_STYLE_URL = new URL('./style/gsi-pale.json', location.href).href;
+
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol('pmtiles', protocol.tile);
+
+    const KIND_COLORS = {
+      roof: '#1d508e', floor: '#3c782e', ceiling: '#845c40', install: '#d95d2a',
+      room: '#f8df4a', wall: '#726f62', window: '#5ab4e5', door: '#b03060', ground: '#999', closure: '#ccc', other: '#888',
+    };
+    const KIND_LABELS = {
+      roof: 'RoofSurface', floor: 'OuterFloor / FloorSurface', ceiling: 'OuterCeiling / CeilingSurface',
+      install: 'BuildingInstallation', room: 'Room', wall: 'WallSurface', window: 'Window', door: 'Door', ground: 'GroundSurface', closure: 'ClosureSurface',
+    };
+    const COLOR_BY_KIND = ['match', ['get', 'kind'], ...Object.entries(KIND_COLORS).flat(), '#888'];
+    const HEIGHT_M = ['*', ['get', 'z_cm'], 0.01];
+    const BASE_M = ['*', ['get', 'zb_cm'], 0.01];
+    const COLOR_BY_HEIGHT = [
+      'interpolate-lab', ['linear'], ['%', ['round', ['*', 10, HEIGHT_M]], 10],
+      0, '#d95d2a', 1, '#d95d2a', 2, '#f8df4a', 3, '#f8df4a', 4, '#1d508e',
+      5, '#1d508e', 6, '#3c782e', 7, '#3c782e', 8, '#845c40', 9, '#726f62',
+    ];
+
+    let gsiStyle = null;
+    async function buildStyle() {
+      if (!gsiStyle) {
+        const res = await fetch(GSI_STYLE_URL);
+        if (!res.ok) throw new Error(`GSI style fetch failed: ${res.status}`);
+        gsiStyle = await res.json();
+      }
+      const style = JSON.parse(JSON.stringify(gsiStyle));
+      style.sources.bldg = { ...SOURCES[current].make(NAME), attribution: ATTRIBUTION };
+      style.layers.push({
+        id: 'fill-extrusion-bldg', type: 'fill-extrusion', source: 'bldg', 'source-layer': 'bldg',
+        minzoom: 10, maxzoom: 22,
+        filter: ['has', 'z_cm'],
+        paint: {
+          'fill-extrusion-color': document.getElementById('byKind').checked ? COLOR_BY_KIND : COLOR_BY_HEIGHT,
+          'fill-extrusion-height': HEIGHT_M,
+          'fill-extrusion-base': BASE_M,
+          'fill-extrusion-opacity': 0.95,
+        },
+      });
+      return style;
+    }
+
+    const ds = DATASETS[NAME];
+    const map = new maplibregl.Map({
+      container: 'map', style: await buildStyle(),
+      center: ds.center, zoom: ds.zoom, pitch: 60, bearing: -20, hash: true, maxPitch: 75,
+    });
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }));
+    map.touchZoomRotate.enableRotation();
+    window.map = map;
+
+    const details = document.getElementById('panelDetails');
+    const isPhone = window.matchMedia('(max-width: 600px)').matches;
+    try { const saved = localStorage.getItem('panelOpen'); details.open = saved !== null ? saved === '1' : !isPhone; } catch (_) { details.open = !isPhone; }
+    details.addEventListener('toggle', () => { try { localStorage.setItem('panelOpen', details.open ? '1' : '0'); } catch (_) {} });
+
+    // --- UI -----------------------------------------------------------------
+    const dsDiv = document.getElementById('datasets');
+    let lastGroup = null;
+    for (const [key, def] of Object.entries(DATASETS)) {
+      if (def.group !== lastGroup) { const h = document.createElement('h4'); h.textContent = def.group; dsDiv.append(h); lastGroup = def.group; }
+      const label = document.createElement('label');
+      const input = document.createElement('input');
+      input.type = 'radio'; input.name = 'dataset'; input.value = key; input.checked = key === NAME;
+      input.addEventListener('change', () => switchDataset(key));
+      label.append(input, ' ', def.label);
+      dsDiv.append(label);
+    }
+    const srcDiv = document.getElementById('sources');
+    for (const [key, def] of Object.entries(SOURCES)) {
+      const label = document.createElement('label');
+      const input = document.createElement('input');
+      input.type = 'radio'; input.name = 'source'; input.value = key; input.checked = key === current;
+      input.addEventListener('change', () => { current = key; reload(false); });
+      label.append(input, ' ', def.label);
+      srcDiv.append(label);
+    }
+    document.getElementById('legend').innerHTML = Object.entries(KIND_LABELS)
+      .map(([k, l]) => `<span style="background:${KIND_COLORS[k]}"></span>${l}`).join('<br>');
+    document.getElementById('byKind').addEventListener('change', (e) => {
+      map.setPaintProperty('fill-extrusion-bldg', 'fill-extrusion-color', e.target.checked ? COLOR_BY_KIND : COLOR_BY_HEIGHT);
+    });
+    function renderNote() { document.getElementById('note').textContent = DATASETS[NAME].note || `${DATASETS[NAME].group}\n${DATASETS[NAME].label}`; }
+    renderNote();
+
+    // --- transfer statistics (Resource Timing) ------------------------------
+    const stats = { tiles: 0, bytes: 0 };
+    const statsDiv = document.getElementById('stats');
+    const observer = new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) {
+        if (!e.name.includes(`/${NAME}.mlt.pmtiles`) && !e.name.includes(`/${NAME}.mvt.pmtiles`)) continue;
+        stats.tiles += 1; stats.bytes += e.transferSize || e.encodedBodySize || 0;
+      }
+      renderStats();
+    });
+    observer.observe({ type: 'resource', buffered: true });
+    function renderStats() {
+      statsDiv.textContent = `${SOURCES[current].label}\nリクエスト: ${stats.tiles}  転送量: ${(stats.bytes / 1024).toFixed(0)} KB\n(PMTiles は Range リクエスト単位。切替でリセット)`;
+    }
+    renderStats();
+
+    async function reload(fly) {
+      stats.tiles = 0; stats.bytes = 0; performance.clearResourceTimings();
+      map.setStyle(await buildStyle());
+      renderNote(); renderStats();
+      const u = new URL(location.href); u.searchParams.set('name', NAME); u.searchParams.set('source', current);
+      history.replaceState(null, '', u);
+      if (fly) map.flyTo({ center: DATASETS[NAME].center, zoom: DATASETS[NAME].zoom, pitch: 60, bearing: -20 });
+    }
+    function switchDataset(key) { NAME = key; reload(true); }
+
+    map.on('error', (e) => {
+      const err = e && e.error ? e.error : e;
+      console.error('[map error]', err && err.message ? err.message : err, e && e.sourceId ? `source ${e.sourceId}` : '');
+    });
+    map.on('click', 'fill-extrusion-bldg', (e) => {
+      const p = e.features[0].properties;
+      new maplibregl.Popup().setLngLat(e.lngLat)
+        .setHTML(`kind ${p.kind}<br>天面 ${(p.z_cm / 100).toFixed(2)} m / 底面 ${(p.zb_cm / 100).toFixed(2)} m<br>lod ${p.lod}`)
+        .addTo(map);
+    });
+  </script>
+</body>
+</html>
