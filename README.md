@@ -5,10 +5,11 @@
 変換規則は [indigo-lab/plateau-lod2-mvt](https://github.com/indigo-lab/plateau-lod2-mvt) に準拠し、出力形式を MVT ディレクトリから MLT / PMTiles に置き換えています。
 
 - デモ: <https://shiwaku.github.io/plateau-lod2-mlt-pipeline/>
+- 実験ビューア（LOD3 / LOD4）: <https://shiwaku.github.io/plateau-lod2-mlt-pipeline/lod3-lod4.html>
 - 設計書: [docs/design.md](docs/design.md)
 - 検証データ: [3D 都市モデル（Project PLATEAU）千代田区（2025 年度）](https://www.geospatial.jp/ckan/dataset/plateau-13101-chiyoda-ku-2025)
 - 東京 23 区の LOD 別整備量: [docs/tokyo23ku-lod-survey.md](docs/tokyo23ku-lod-survey.md)
-- LOD3 / LOD4 を MLT にする実験: [docs/lod3-lod4-experiment.md](docs/lod3-lod4-experiment.md)（ビューア: [lod3-lod4.html](https://shiwaku.github.io/plateau-lod2-mlt-pipeline/lod3-lod4.html)）
+- LOD3 / LOD4 を MLT にする実験: [docs/lod3-lod4-experiment.md](docs/lod3-lod4-experiment.md)
 
 関連: [frogcat/plateau-lod2-mlt](https://github.com/frogcat/plateau-lod2-mlt) は indigo-lab 版の MVT（2020 年度・東京 23 区）を MLT に変換したものです。
 本リポジトリは CityGML から直接変換するため、2023 年度以降のデータや他都市にも使え、PMTiles も出力します。
