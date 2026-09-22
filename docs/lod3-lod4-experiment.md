@@ -6,6 +6,7 @@
 - 変換: [`scripts/citygml2geojson_surfaces.py`](../scripts/citygml2geojson_surfaces.py)（実験用。本番の `citygml2geojson.py` は変更なし）
 - タイル: `dist/{toranomon-lod3,hikifune-lod3,takeshiba-lod4}-{roof,horizontal,all}.*.pmtiles`、`dist/shinjuku-ubld-lod4-rooms.*.pmtiles`
 - ビューア: [`lod3-lod4.html`](../lod3-lod4.html)（データセットと MLT / MVT を切り替え、面の種類で色分け・表示切り替え）
+- LOD の定義: [tokyo23ku-lod-survey.md](tokyo23ku-lod-survey.md) の 1 節（屋根形状は LOD2。LOD3 は開口部と壁面、LOD4 は屋内）
 
 ## 1. 結論
 
