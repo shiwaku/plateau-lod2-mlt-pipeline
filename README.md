@@ -1,11 +1,11 @@
-# plateau-lod2-mlt-pipeline
+# plateau-mlt-pipeline
 
 [3D 都市モデル（Project PLATEAU）](https://www.mlit.go.jp/plateau/) の CityGML から、建築物（`bldg:Building`）の LOD2 屋根面を
 [MapLibre Tile（MLT）](https://maplibre.org/maplibre-tile-spec/) と [PMTiles](https://github.com/protomaps/PMTiles) に変換するパイプラインです。
 変換規則は [indigo-lab/plateau-lod2-mvt](https://github.com/indigo-lab/plateau-lod2-mvt) に準拠し、出力形式を MVT ディレクトリから MLT / PMTiles に置き換えています。
 
-- デモ: <https://shiwaku.github.io/plateau-lod2-mlt-pipeline/>
-- 実験ビューア（LOD3 / LOD4）: <https://shiwaku.github.io/plateau-lod2-mlt-pipeline/lod3-lod4.html>
+- デモ: <https://shiwaku.github.io/plateau-mlt-pipeline/>
+- 実験ビューア（LOD3 / LOD4）: <https://shiwaku.github.io/plateau-mlt-pipeline/lod3-lod4.html>
 - 設計書: [docs/design.md](docs/design.md)
 - 検証データ: [3D 都市モデル（Project PLATEAU）千代田区（2025 年度）](https://www.geospatial.jp/ckan/dataset/plateau-13101-chiyoda-ku-2025)
 - 東京 23 区の LOD 別整備量: [docs/tokyo23ku-lod-survey.md](docs/tokyo23ku-lod-survey.md)
@@ -99,7 +99,7 @@ MapLibre GL JS 6.10.0 + pmtiles.js 4.5.0 で両ソースの表示を確認して
 | 背景地図のスタイル | `style/gsi-pale.json`（[gsi-cyberjapan/3dpc-3dtiles](https://github.com/gsi-cyberjapan/3dpc-3dtiles) の `public/styles/pale.json`） | 国土地理院 | 淡色地図風スタイル。glyphs と sprite は `gsi-cyberjapan.github.io/optimal_bvmap` を参照 |
 | 変換規則 | [indigo-lab/plateau-lod2-mvt](https://github.com/indigo-lab/plateau-lod2-mvt) | indigo-lab | ジオメトリ・高さの算出規則と tippecanoe オプションを踏襲（CC BY 4.0） |
 
-元データに含まれない建物があります（例: 霞が関 2 丁目付近の官公庁）。詳細は [Issue #3](https://github.com/shiwaku/plateau-lod2-mlt-pipeline/issues/3) を参照してください。
+元データに含まれない建物があります（例: 霞が関 2 丁目付近の官公庁）。詳細は [Issue #3](https://github.com/shiwaku/plateau-mlt-pipeline/issues/3) を参照してください。
 
 ## ライセンス
 

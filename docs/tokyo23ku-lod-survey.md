@@ -75,7 +75,7 @@ LOD2 の整備率は 23 区全体で 6.4%。中央区 100%、千代田区 78%、
 千代田区 2025 の `udx/bldg` にも LOD3 を持つ建物が 21 棟含まれるが、`uro:city` は全て `13103`（港区・虎ノ門）で、
 メッシュが区界をまたぐことによる同梱。`--city 13101` で除外される。千代田区の建築物 LOD3 は実質ゼロ。
 
-これらを本パイプラインで扱えない理由は [Issue #4](https://github.com/shiwaku/plateau-lod2-mlt-pipeline/issues/4) を参照。
+これらを本パイプラインで扱えない理由は [Issue #4](https://github.com/shiwaku/plateau-mlt-pipeline/issues/4) を参照。
 
 ## 5. 数値の性質
 
@@ -86,7 +86,7 @@ LOD2 の整備率は 23 区全体で 6.4%。中央区 100%、千代田区 78%、
 実数が必要な場合は CityGML zip 21.8 GB（最大は中央区 2.5 GB）をダウンロードして走査する。
 
 本ドキュメントの用途は「どの区にどの LOD がどれだけあるか」の概観なので、宣言値のまま使う
-（差は千代田区で 0.14%、結論は変わらない）。23 区の実数調査は見送った（[Issue #9](https://github.com/shiwaku/plateau-lod2-mlt-pipeline/issues/9)）。
+（差は千代田区で 0.14%、結論は変わらない）。23 区の実数調査は見送った（[Issue #9](https://github.com/shiwaku/plateau-mlt-pipeline/issues/9)）。
 
 ## 6. 再現方法
 
