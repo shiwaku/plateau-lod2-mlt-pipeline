@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="620" viewBox="0 0 900 620" role="img" aria-labelledby="ttl dsc">
+  <title id="ttl">建築物モデルの LOD ごとに何が入っているか</title>
+  <desc id="dsc">PLATEAU 建築物モデルの LOD0 から LOD4 までを同じ建物の断面で並べ、各段階で増える要素を LOD 別の色で示した図。LOD0 は屋根伏図、LOD1 は箱、LOD2 は屋根形状、LOD3 は窓・ドア・庇などの開口部と壁面の詳細、LOD4 は室内。</desc>
+
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif; fill: #24221e; }
+    .h1 { font-size: 19px; font-weight: 700; }
+    .h2 { font-size: 12.5px; fill: #6b665d; }
+    .lod { font-size: 15px; font-weight: 700; }
+    .sub { font-size: 10.5px; font-weight: 700; fill: #3c3830; }
+    .cap { font-size: 10.5px; fill: #55504a; }
+    .row { font-size: 11.5px; fill: #3c3830; }
+    .note { font-size: 11px; fill: #55504a; }
+    .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 11px; }
+    .ref { fill: none; stroke: #cdc7bc; stroke-width: 1.6; stroke-dasharray: 5 4; }
+    .old { fill: #eceae5; stroke: #cfc9bf; stroke-width: 1.6; }
+  </style>
+
+  <defs>
+    <g id="g2">
+      <path d="M0,150 L200,150" stroke="#9a948a" stroke-width="2.2"/>
+      <g stroke="#bdb7ac" stroke-width="1.4">
+        <path d="M6,150 L0,159"/><path d="M26,150 L20,159"/><path d="M46,150 L40,159"/>
+        <path d="M66,150 L60,159"/><path d="M86,150 L80,159"/><path d="M106,150 L100,159"/>
+        <path d="M126,150 L120,159"/><path d="M146,150 L140,159"/><path d="M166,150 L160,159"/>
+        <path d="M186,150 L180,159"/><path d="M206,150 L200,159"/>
+      </g>
+    </g>
+    <!-- outline of the LOD2 shape, used as a faint reference in LOD0 / LOD1 -->
+    <path id="outline" d="M30,150 L30,70 L100,40 L170,70 L170,150 Z"/>
+  </defs>
+
+  <rect width="900" height="620" fill="#ffffff"/>
+
+  <text class="h1" x="30" y="34">建築物モデルの LOD ごとに何が入っているか</text>
+  <text class="h2" x="30" y="56">同じ建物の断面。色が付いている部分が、その LOD で新しく入ってくる要素</text>
+
+  <!-- ===== LOD0 ===== -->
+  <g transform="translate(30,80)">
+    <rect width="160" height="250" rx="8" fill="#fbfaf8" stroke="#e2ded6"/>
+    <text class="lod" x="12" y="26" fill="#9a948a">LOD0</text>
+    <text class="sub" x="12" y="43">屋根伏図</text>
+    <g transform="translate(6,52) scale(0.72)">
+      <use href="#outline" class="ref"/>
+      <use href="#g2"/>
+      <path d="M30,150 L170,150" stroke="#9a948a" stroke-width="9" stroke-linecap="round"/>
+    </g>
+    <text class="cap" x="12" y="202">屋根の輪郭を地面に</text>
+    <text class="cap" x="12" y="216">落とした 2D ポリゴン</text>
+    <text class="cap" x="12" y="234">高さを持たない</text>
+  </g>
+
+  <!-- ===== LOD1 ===== -->
+  <g transform="translate(200,80)">
+    <rect width="160" height="250" rx="8" fill="#fbfaf8" stroke="#e2ded6"/>
+    <text class="lod" x="12" y="26" fill="#6f92b8">LOD1</text>
+    <text class="sub" x="12" y="43">箱モデル</text>
+    <g transform="translate(6,52) scale(0.72)">
+      <use href="#outline" class="ref"/>
+      <use href="#g2"/>
+      <rect x="30" y="55" width="140" height="95" fill="#8aa8c8" stroke="#6f92b8" stroke-width="1.6"/>
+    </g>
+    <text class="cap" x="12" y="202">高さまで押し出した</text>
+    <text class="cap" x="12" y="216">だけの箱</text>
+    <text class="cap" x="12" y="234">屋根の形は入らない</text>
+  </g>
+
+  <!-- ===== LOD2 ===== -->
+  <g transform="translate(370,80)">
+    <rect width="160" height="250" rx="8" fill="#fbfaf8" stroke="#e2ded6"/>
+    <text class="lod" x="12" y="26" fill="#1d508e">LOD2</text>
+    <text class="sub" x="12" y="43">屋根形状</text>
+    <g transform="translate(6,52) scale(0.72)">
+      <use href="#g2"/>
+      <rect x="30" y="70" width="140" height="80" fill="#c4d3e5" stroke="#1d508e" stroke-width="1.6"/>
+      <path d="M30,70 L100,40 L170,70 Z" fill="#1d508e"/>
+    </g>
+    <text class="cap" x="12" y="202">屋根・壁・地面が</text>
+    <text class="cap" x="12" y="216">面として分かれる</text>
+    <text class="cap" x="12" y="234" style="font-weight:700">本番パイプラインはここ</text>
+  </g>
+
+  <!-- ===== LOD3 ===== -->
+  <g transform="translate(540,80)">
+    <rect width="160" height="250" rx="8" fill="#fbfaf8" stroke="#e2ded6"/>
+    <text class="lod" x="12" y="26" fill="#d95d2a">LOD3</text>
+    <text class="sub" x="12" y="43">開口部・壁面の詳細</text>
+    <g transform="translate(6,52) scale(0.72)">
+      <use href="#g2"/>
+      <rect x="30" y="70" width="140" height="80" class="old"/>
+      <path d="M30,70 L100,40 L170,70 Z" class="old"/>
+      <g fill="#d95d2a">
+        <rect x="44" y="86" width="22" height="20"/>
+        <rect x="126" y="86" width="22" height="20"/>
+        <rect x="44" y="120" width="22" height="20"/>
+        <rect x="88" y="118" width="24" height="32"/>
+        <rect x="78" y="110" width="44" height="7"/>
+        <rect x="170" y="96" width="22" height="7"/>
+      </g>
+    </g>
+    <text class="cap" x="12" y="202">窓・ドア・庇・</text>
+    <text class="cap" x="12" y="216">バルコニー・セットバック</text>
+    <text class="cap" x="12" y="234">屋根は詳しくならない</text>
+  </g>
+
+  <!-- ===== LOD4 ===== -->
+  <g transform="translate(710,80)">
+    <rect width="160" height="250" rx="8" fill="#fbfaf8" stroke="#e2ded6"/>
+    <text class="lod" x="12" y="26" fill="#3c782e">LOD4</text>
+    <text class="sub" x="12" y="43">屋内</text>
+    <g transform="translate(6,52) scale(0.72)">
+      <use href="#g2"/>
+      <rect x="30" y="70" width="140" height="80" class="old"/>
+      <path d="M30,70 L100,40 L170,70 Z" class="old"/>
+      <g fill="#ccdfc4" stroke="#3c782e" stroke-width="1.8">
+        <rect x="38" y="112" width="58" height="34"/>
+        <rect x="104" y="112" width="58" height="34"/>
+        <rect x="38" y="76" width="124" height="30"/>
+      </g>
+    </g>
+    <text class="cap" x="12" y="202">室（Room）と</text>
+    <text class="cap" x="12" y="216">内壁・天井・床</text>
+    <text class="cap" x="12" y="234">地下街・BIM 由来のみ</text>
+  </g>
+
+  <!-- ===== table ===== -->
+  <g transform="translate(30,350)">
+    <rect width="840" height="230" rx="8" fill="#fbfaf8" stroke="#e2ded6"/>
+
+    <g>
+      <rect x="16" y="22" width="13" height="13" rx="2" fill="#9a948a"/>
+      <text class="row" x="38" y="33" style="font-weight:700">LOD0</text>
+      <text class="row" x="90" y="33">屋根伏図（<tspan class="mono">lod0RoofEdge</tspan>）。屋根の輪郭を地面に落とした 2D ポリゴン。高さを持たない</text>
+
+      <rect x="16" y="46" width="13" height="13" rx="2" fill="#8aa8c8"/>
+      <text class="row" x="38" y="57" style="font-weight:700">LOD1</text>
+      <text class="row" x="90" y="57">箱モデル（<tspan class="mono">lod1Solid</tspan>）。<tspan class="mono">measuredHeight</tspan> まで押し出しただけで、屋根の形は無い</text>
+
+      <rect x="16" y="70" width="13" height="13" rx="2" fill="#1d508e"/>
+      <text class="row" x="38" y="81" style="font-weight:700">LOD2</text>
+      <text class="row" x="90" y="81"><tspan style="font-weight:700">屋根形状</tspan>（<tspan class="mono">lod2MultiSurface</tspan>）。RoofSurface / WallSurface / GroundSurface に分かれる</text>
+
+      <rect x="16" y="94" width="13" height="13" rx="2" fill="#d95d2a"/>
+      <text class="row" x="38" y="105" style="font-weight:700">LOD3</text>
+      <text class="row" x="90" y="105"><tspan style="font-weight:700">開口部と壁面の詳細</tspan>（<tspan class="mono">lod3MultiSurface</tspan>）。Window / Door、庇、バルコニー、セットバック</text>
+
+      <rect x="16" y="118" width="13" height="13" rx="2" fill="#3c782e"/>
+      <text class="row" x="38" y="129" style="font-weight:700">LOD4</text>
+      <text class="row" x="90" y="129"><tspan style="font-weight:700">屋内</tspan>（<tspan class="mono">lod4Solid</tspan>）。Room、InteriorWallSurface、CeilingSurface、FloorSurface</text>
+    </g>
+
+    <path d="M16,148 L824,148" stroke="#e2ded6" stroke-width="1"/>
+
+    <text class="note" x="16" y="170">・LOD3 は「屋根が詳しくなる」段階ではない。屋根形状は LOD2 で入り、LOD3 で増えるのは窓・ドアと壁まわりの形</text>
+    <text class="note" x="16" y="192">・細分（LOD2.0 / 2.2、LOD3.0 など）はテクスチャの有無・品質による区分で、形状の詳細さの段階ではない</text>
+    <text class="note" x="16" y="214">・実データは階段状に積み上がるとは限らない。竹芝 LOD4.2 は屋根だけ <tspan class="mono">lod2MultiSurface</tspan>、壁と床が <tspan class="mono">lod4</tspan></text>
+  </g>
+
+  <text class="note" x="30" y="602">断面は説明用の模式図。本リポジトリの本番出力が使うのは LOD2 の RoofSurface で、LOD3 / LOD4 は実験のみ。</text>
+</svg>

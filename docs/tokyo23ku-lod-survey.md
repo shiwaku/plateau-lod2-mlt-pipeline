@@ -1,12 +1,40 @@
 # 東京 23 区・最新年度データの LOD 別整備量（2026-09-20 調査）
 
 本パイプラインの対象を広げる際の判断材料として、Project PLATEAU の東京 23 区データについて
-**建築物モデルの LOD 別棟数**を整理したもの。あわせて LOD3 / LOD4 の所在も記録する。
+**建築物モデルの LOD 別棟数**を整理したもの。あわせて LOD ごとの中身（1 節）と LOD3 / LOD4 の所在も記録する。
 
 数値は各データセットの `README.md`（CityGML zip 同梱）に記載された**整備量の宣言値**であり、
-CityGML 要素の実数ではない。詳細は「5. 数値の性質」を参照。
+CityGML 要素の実数ではない。詳細は「6. 数値の性質」を参照。
 
-## 1. 調査方法
+## 1. LOD ごとに何が入っているか
+
+棟数を読む前提として、建築物モデルの LOD が何を意味するかを整理しておく。
+**LOD3 は「屋根が詳しくなる」段階ではない。屋根形状は LOD2 で入る。**
+
+![建築物モデルの LOD ごとに何が入っているか](img/lod-ladder.svg)
+
+| LOD | 中身 | 主な要素 |
+| --- | --- | --- |
+| LOD0 | 屋根伏図。屋根の輪郭を地面に落とした 2D ポリゴンで、高さを持たない | `lod0RoofEdge` |
+| LOD1 | 箱モデル。`measuredHeight` まで押し出しただけで、屋根の形は無い | `lod1Solid` |
+| **LOD2** | **屋根形状**。面がテーマ別に分かれる | `lod2MultiSurface`、`RoofSurface` / `WallSurface` / `GroundSurface` |
+| **LOD3** | **開口部と壁面の詳細**。庇・バルコニー・セットバックもここ | `lod3MultiSurface`、`Window` / `Door` |
+| **LOD4** | **屋内** | `lod4Solid`、`Room` / `InteriorWallSurface` / `CeilingSurface` / `FloorSurface` |
+
+注意点が 3 つある。
+
+- 小数点以下の細分（`LOD2.0` / `LOD2.2`、`LOD3.0` など）はテクスチャの有無・品質による区分で、
+  形状の詳細さの段階ではない。3 節の表の「内訳」列はこれ
+- 実データは階段状に積み上がるとは限らない。ポートシティ竹芝の LOD4.2 モデルは、
+  屋根だけ `lod2MultiSurface` で、壁と床が `lod4` という構成だった
+- 本リポジトリの本番パイプライン（`scripts/citygml2geojson.py`）が使うのは LOD2 の `RoofSurface`。
+  LOD3 / LOD4 を 2D タイルに載せる経路の検証は [lod3-lod4-experiment.md](lod3-lod4-experiment.md) にある
+
+実際、虎ノ門の LOD3 102 棟には窓 10,434 枚・ドア 706 枚が入っていた。これらは LOD2 データには 1 枚も無い。
+つまり LOD3 の中身は壁まわりであり、2D ベクトルタイルに落とすと 99% 以上が消える
+（[lod3-lod4-experiment.md](lod3-lod4-experiment.md) の 3.3 節）。
+
+## 2. 調査方法
 
 G 空間情報センターの CKAN API と、配信サーバーの HTTP Range 対応を使う。CityGML zip 本体
 （23 区合計 21.8 GB）はダウンロードしない。
@@ -16,9 +44,9 @@ G 空間情報センターの CKAN API と、配信サーバーの HTTP Range �
 3. zip の中央ディレクトリだけを Range リクエストで読み、`README.md` の1エントリのみ展開する
 4. README の「建築物モデル」節を解析する
 
-1 区あたり 1〜2 秒、転送量は数百 KB。再現用のコードは「6. 再現方法」に置いた。
+1 区あたり 1〜2 秒、転送量は数百 KB。再現用のコードは「7. 再現方法」に置いた。
 
-## 2. 建築物モデルの LOD 別棟数
+## 3. 建築物モデルの LOD 別棟数
 
 | 区 | 年度 | LOD1 | LOD2 系 | 内訳 | LOD3 |
 | --- | --- | ---: | ---: | --- | ---: |
@@ -52,7 +80,7 @@ LOD2 の整備率は 23 区全体で 6.4%。中央区 100%、千代田区 78%、
 本パイプラインは LOD2 が無い建物を `lod0RoofEdge` + 高さでフォールバックするため、
 周辺区を対象にすると出力のほぼ全てが屋根伏せになる。
 
-## 3. 「最新年度」データセットの落とし穴
+## 4. 「最新年度」データセットの落とし穴
 
 年度が新しくても、そのデータセットが建築物モデルを含むとは限らない。
 
@@ -63,7 +91,7 @@ LOD2 の整備率は 23 区全体で 6.4%。中央区 100%、千代田区 78%、
 
 港区で LOD3 を扱うなら 2023 年度版を使う。
 
-## 4. LOD3 / LOD4 の所在
+## 5. LOD3 / LOD4 の所在
 
 | LOD | 所在 | 規模 |
 | --- | --- | --- |
@@ -77,7 +105,7 @@ LOD2 の整備率は 23 区全体で 6.4%。中央区 100%、千代田区 78%、
 
 これらを本パイプラインで扱えない理由は [Issue #4](https://github.com/shiwaku/plateau-mlt-pipeline/issues/4) を参照。
 
-## 5. 数値の性質
+## 6. 数値の性質
 
 表の値は README の整備量宣言であり、CityGML 要素の実数ではない。
 千代田区 2025 で実測したときは README 12,576 棟に対し `uro:city = 13101` の `bldg:Building` が 12,558 棟で、
@@ -88,7 +116,7 @@ LOD2 の整備率は 23 区全体で 6.4%。中央区 100%、千代田区 78%、
 本ドキュメントの用途は「どの区にどの LOD がどれだけあるか」の概観なので、宣言値のまま使う
 （差は千代田区で 0.14%、結論は変わらない）。23 区の実数調査は見送った（[Issue #9](https://github.com/shiwaku/plateau-mlt-pipeline/issues/9)）。
 
-## 6. 再現方法
+## 7. 再現方法
 
 ```python
 import io, json, urllib.request, zipfile
@@ -133,7 +161,7 @@ print(z.read(name).decode("utf-8-sig"))
 README のファイル名は区によって `README.md` / `README_op.md` と揺れ、zip 直下にある場合と
 `13103_minato-ku_city_2023_citygml_1_op/` のような 1 階層下にある場合がある。
 
-## 7. 出典
+## 8. 出典
 
 - [3D 都市モデル（Project PLATEAU）](https://www.mlit.go.jp/plateau/)（国土交通省）。各区データセットは G 空間情報センターで配布
 - 利用にあたっては [PLATEAU Site Policy](https://www.mlit.go.jp/plateau/site-policy/) を確認すること
