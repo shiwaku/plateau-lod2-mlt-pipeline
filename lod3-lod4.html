@@ -8,7 +8,7 @@
   <script src="https://unpkg.com/pmtiles@4.5.0/dist/pmtiles.js"></script>
   <style>
     html, body { margin: 0; height: 100%; overscroll-behavior: none; }
-    #map { position: absolute; inset: 0; }
+    #map { position: absolute; inset: 0; background: #ece9e3; }
     #panel {
       position: absolute; top: 10px; left: 10px; z-index: 1;
       background: rgba(255,255,255,.92); color: #222; font: 13px/1.5 system-ui, sans-serif;
@@ -27,9 +27,25 @@
     #panel hr { border: 0; border-top: 1px solid #ccc; margin: 8px 0; }
     #panel h4 { margin: 6px 0 2px; font-size: 12px; color: #555; }
     #stats, #note { color: #555; font-size: 12px; white-space: pre-line; }
-    #legend span { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -2px; margin-right: 4px; }
+    #legend span.sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -2px; margin-right: 4px; }
     #legend { font-size: 12px; line-height: 1.7; }
+    #presets { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+    #presets button {
+      font: 12px/1.4 system-ui, sans-serif; color: #1d508e; background: #fff;
+      border: 1px solid #b8c4d4; border-radius: 4px; padding: 3px 8px; cursor: pointer;
+    }
     #panel a { color: #1d508e; }
+    #loading {
+      position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 2;
+      background: rgba(30,30,30,.85); color: #fff; font: 13px/1.4 system-ui, sans-serif;
+      padding: 8px 12px; border-radius: 6px; display: flex; gap: 10px; align-items: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,.3);
+    }
+    #loading button {
+      font: inherit; color: #fff; background: transparent; border: 1px solid #aaa;
+      border-radius: 4px; padding: 2px 8px; cursor: pointer; white-space: nowrap;
+    }
+    #loading[hidden] { display: none; }
     @media (max-width: 600px) {
       #panel { top: 0; left: 0; right: 0; max-width: none; border-radius: 0 0 8px 8px; padding-top: env(safe-area-inset-top); }
       #panel .body { max-height: 55vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -39,6 +55,10 @@
 </head>
 <body>
   <div id="map"></div>
+  <div id="loading" hidden>
+    <span>背景地図を読み込み中…</span>
+    <button type="button" id="skipBaseMap">背景なしで表示</button>
+  </div>
   <div id="panel">
     <details id="panelDetails" open>
       <summary>LOD3 / LOD4 を MLT にする実験</summary>
@@ -46,9 +66,14 @@
         <div id="datasets"></div>
         <hr>
         <div id="sources"></div>
+        <label><input type="checkbox" id="baseMap" checked> 背景地図（国土地理院）</label>
         <hr>
         <label><input type="checkbox" id="byKind" checked> 面の種類で色分け</label>
         <div id="legend"></div>
+        <div id="presets">
+          <button type="button" data-preset="interior">外殻を隠す</button>
+          <button type="button" data-preset="all">すべて表示</button>
+        </div>
         <hr>
         <div id="note"></div>
         <hr>
@@ -77,7 +102,8 @@
       'shinjuku-ubld-lod4-rooms':  { group: '新宿駅周辺 地下街 LOD4.1（新宿区 2023）', label: 'Room ごとの箱（最下面 = 0 で表示）', center: [139.7008, 35.6929], zoom: 16,
                                      note: '地下街は標高 15〜45 m の絶対値で、MapLibre の押し出しは 0 未満を描けないため、構造物の最下面を 0 として地上に持ち上げて表示しています。' },
       'takeshiba-lod4-roof':       { group: 'ポートシティ竹芝 LOD4（2022、1 棟）', label: '屋根面のみ（LOD2 の屋根）', center: [139.7610, 35.6551], zoom: 17 },
-      'takeshiba-lod4-horizontal': { group: 'ポートシティ竹芝 LOD4（2022、1 棟）', label: '水平面すべて（外殻 + 室）', center: [139.7610, 35.6551], zoom: 17 },
+      'takeshiba-lod4-horizontal': { group: 'ポートシティ竹芝 LOD4（2022、1 棟）', label: '水平面すべて（外殻 + 室）', center: [139.7610, 35.6551], zoom: 17,
+                                     note: '室内の床・天井は外殻に隠れています。「外殻を隠す」で階ごとの床板が見えます。' },
       'takeshiba-lod4-all':        { group: 'ポートシティ竹芝 LOD4（2022、1 棟）', label: '壁・開口部も投影', center: [139.7610, 35.6551], zoom: 17 },
       'hikifune-lod3-roof':        { group: '曳舟 LOD3（墨田区 2025、3 棟）', label: '屋根面のみ（現行ルール）', center: [139.8185, 35.7170], zoom: 16.5 },
       'hikifune-lod3-horizontal':  { group: '曳舟 LOD3（墨田区 2025、3 棟）', label: '水平面すべて（段差押し出し）', center: [139.8185, 35.7170], zoom: 16.5 },
@@ -90,8 +116,11 @@
       'mvt-pmtiles': { label: 'MVT / PMTiles', make: (n) => ({ type: 'vector', url: `pmtiles://${BASE}/${n}.mvt.pmtiles` }) },
     };
     let current = params.get('source') in SOURCES ? params.get('source') : 'mlt-pmtiles';
+    // ?base-map=none skips the GSI vector tiles, which can take tens of seconds on a cold cache.
+    let baseMap = params.get('base-map') !== 'none';
     const ATTRIBUTION = "<a href='https://www.mlit.go.jp/plateau/'>国土交通省 Project PLATEAU</a> のデータを加工して作成";
     const GSI_STYLE_URL = new URL('./style/gsi-pale.json', location.href).href;
+    const LAYER = 'fill-extrusion-bldg';
 
     const protocol = new pmtiles.Protocol();
     maplibregl.addProtocol('pmtiles', protocol.tile);
@@ -104,6 +133,12 @@
       roof: 'RoofSurface', floor: 'OuterFloor / FloorSurface', ceiling: 'OuterCeiling / CeilingSurface',
       install: 'BuildingInstallation', room: 'Room', wall: 'WallSurface', window: 'Window', door: 'Door', ground: 'GroundSurface', closure: 'ClosureSurface',
     };
+    // the outer shell; hiding these uncovers the floor slabs and rooms inside (Takeshiba LOD4)
+    const SHELL_KINDS = ['roof', 'install', 'wall', 'window', 'door', 'ground', 'closure'];
+    const ALL_KINDS = Object.keys(KIND_LABELS);
+    const kindOn = new Set(ALL_KINDS);
+    let byKindOn = true;
+
     const COLOR_BY_KIND = ['match', ['get', 'kind'], ...Object.entries(KIND_COLORS).flat(), '#888'];
     const HEIGHT_M = ['*', ['get', 'z_cm'], 0.01];
     const BASE_M = ['*', ['get', 'zb_cm'], 0.01];
@@ -113,32 +148,55 @@
       5, '#1d508e', 6, '#3c782e', 7, '#3c782e', 8, '#845c40', 9, '#726f62',
     ];
 
+    // --- base style and building layer --------------------------------------
+    // The building source is layered on top of the base style instead of being baked
+    // into it, so switching dataset or MLT/MVT never reloads the base map.
+    const MINIMAL_STYLE = {
+      version: 8, sources: {},
+      layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#ece9e3' } }],
+    };
+
     let gsiStyle = null;
-    async function buildStyle() {
+    async function baseStyle() {
+      if (!baseMap) return structuredClone(MINIMAL_STYLE);
       if (!gsiStyle) {
         const res = await fetch(GSI_STYLE_URL);
         if (!res.ok) throw new Error(`GSI style fetch failed: ${res.status}`);
         gsiStyle = await res.json();
       }
-      const style = JSON.parse(JSON.stringify(gsiStyle));
-      style.sources.bldg = { ...SOURCES[current].make(NAME), attribution: ATTRIBUTION };
-      style.layers.push({
-        id: 'fill-extrusion-bldg', type: 'fill-extrusion', source: 'bldg', 'source-layer': 'bldg',
-        minzoom: 10, maxzoom: 22,
-        filter: ['has', 'z_cm'],
-        paint: {
-          'fill-extrusion-color': document.getElementById('byKind').checked ? COLOR_BY_KIND : COLOR_BY_HEIGHT,
-          'fill-extrusion-height': HEIGHT_M,
-          'fill-extrusion-base': BASE_M,
-          'fill-extrusion-opacity': 0.95,
-        },
-      });
+      return structuredClone(gsiStyle);
+    }
+
+    function kindFilter() {
+      if (kindOn.size === ALL_KINDS.length) return ['has', 'z_cm'];
+      return ['all', ['has', 'z_cm'], ['in', ['get', 'kind'], ['literal', [...kindOn]]]];
+    }
+
+    const bldgSource = () => ({ ...SOURCES[current].make(NAME), attribution: ATTRIBUTION });
+    const bldgLayer = () => ({
+      id: LAYER, type: 'fill-extrusion', source: 'bldg', 'source-layer': 'bldg',
+      minzoom: 10, maxzoom: 22,
+      filter: kindFilter(),
+      paint: {
+        'fill-extrusion-color': byKindOn ? COLOR_BY_KIND : COLOR_BY_HEIGHT,
+        'fill-extrusion-height': HEIGHT_M,
+        'fill-extrusion-base': BASE_M,
+        'fill-extrusion-opacity': 0.95,
+      },
+    });
+
+    // Baked into the style on (re)load: the GSI style's sprite blocks `style.load` /
+    // `styledata`, so a layer added from those events would never appear.
+    async function fullStyle() {
+      const style = await baseStyle();
+      style.sources.bldg = bldgSource();
+      style.layers.push(bldgLayer());
       return style;
     }
 
     const ds = DATASETS[NAME];
     const map = new maplibregl.Map({
-      container: 'map', style: await buildStyle(),
+      container: 'map', style: await fullStyle(),
       center: ds.center, zoom: ds.zoom, pitch: 60, bearing: -20, hash: true, maxPitch: 75,
     });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }));
@@ -149,6 +207,21 @@
     const isPhone = window.matchMedia('(max-width: 600px)').matches;
     try { const saved = localStorage.getItem('panelOpen'); details.open = saved !== null ? saved === '1' : !isPhone; } catch (_) { details.open = !isPhone; }
     details.addEventListener('toggle', () => { try { localStorage.setItem('panelOpen', details.open ? '1' : '0'); } catch (_) {} });
+
+    // --- "base map still loading" badge -------------------------------------
+    const loadingEl = document.getElementById('loading');
+    let loadingTimer = null;
+    function armLoadingBadge() {
+      clearTimeout(loadingTimer);
+      loadingEl.hidden = true;
+      if (!baseMap) return;
+      loadingTimer = setTimeout(() => { if (!map.loaded()) loadingEl.hidden = false; }, 1500);
+    }
+    map.on('idle', () => { clearTimeout(loadingTimer); loadingEl.hidden = true; });
+    document.getElementById('skipBaseMap').addEventListener('click', () => {
+      document.getElementById('baseMap').checked = false;
+      setBaseMap(false);
+    });
 
     // --- UI -----------------------------------------------------------------
     const dsDiv = document.getElementById('datasets');
@@ -167,15 +240,44 @@
       const label = document.createElement('label');
       const input = document.createElement('input');
       input.type = 'radio'; input.name = 'source'; input.value = key; input.checked = key === current;
-      input.addEventListener('change', () => { current = key; reload(false); });
+      input.addEventListener('change', () => { current = key; reloadBldg(false); });
       label.append(input, ' ', def.label);
       srcDiv.append(label);
     }
-    document.getElementById('legend').innerHTML = Object.entries(KIND_LABELS)
-      .map(([k, l]) => `<span style="background:${KIND_COLORS[k]}"></span>${l}`).join('<br>');
+    document.getElementById('baseMap').checked = baseMap;
+
+    // the legend doubles as a per-kind visibility switch
+    const legendDiv = document.getElementById('legend');
+    const kindInputs = {};
+    for (const [k, l] of Object.entries(KIND_LABELS)) {
+      const label = document.createElement('label');
+      const input = document.createElement('input');
+      input.type = 'checkbox'; input.checked = true;
+      input.addEventListener('change', () => { input.checked ? kindOn.add(k) : kindOn.delete(k); applyKindFilter(); });
+      const sw = document.createElement('span');
+      sw.className = 'sw'; sw.style.background = KIND_COLORS[k];
+      label.append(input, sw, l);
+      legendDiv.append(label);
+      kindInputs[k] = input;
+    }
+    function applyKindFilter() { if (map.getLayer(LAYER)) map.setFilter(LAYER, kindFilter()); }
+    function setKinds(keys) {
+      kindOn.clear();
+      for (const k of keys) kindOn.add(k);
+      for (const [k, input] of Object.entries(kindInputs)) input.checked = kindOn.has(k);
+      applyKindFilter();
+    }
+    for (const btn of document.querySelectorAll('#presets button')) {
+      btn.addEventListener('click', () => {
+        setKinds(btn.dataset.preset === 'interior' ? ALL_KINDS.filter((k) => !SHELL_KINDS.includes(k)) : ALL_KINDS);
+      });
+    }
+
     document.getElementById('byKind').addEventListener('change', (e) => {
-      map.setPaintProperty('fill-extrusion-bldg', 'fill-extrusion-color', e.target.checked ? COLOR_BY_KIND : COLOR_BY_HEIGHT);
+      byKindOn = e.target.checked;
+      map.setPaintProperty(LAYER, 'fill-extrusion-color', byKindOn ? COLOR_BY_KIND : COLOR_BY_HEIGHT);
     });
+    document.getElementById('baseMap').addEventListener('change', (e) => setBaseMap(e.target.checked));
     function renderNote() { document.getElementById('note').textContent = DATASETS[NAME].note || `${DATASETS[NAME].group}\n${DATASETS[NAME].label}`; }
     renderNote();
 
@@ -195,21 +297,41 @@
     }
     renderStats();
 
-    async function reload(fly) {
-      stats.tiles = 0; stats.bytes = 0; performance.clearResourceTimings();
-      map.setStyle(await buildStyle());
-      renderNote(); renderStats();
-      const u = new URL(location.href); u.searchParams.set('name', NAME); u.searchParams.set('source', current);
+    function syncUrl() {
+      const u = new URL(location.href);
+      u.searchParams.set('name', NAME);
+      u.searchParams.set('source', current);
+      if (baseMap) u.searchParams.delete('base-map'); else u.searchParams.set('base-map', 'none');
       history.replaceState(null, '', u);
+    }
+
+    // dataset / source switch: swap the building source only, keep the base map loaded
+    function reloadBldg(fly) {
+      stats.tiles = 0; stats.bytes = 0; performance.clearResourceTimings();
+      if (map.getLayer(LAYER)) map.removeLayer(LAYER);
+      if (map.getSource('bldg')) map.removeSource('bldg');
+      map.addSource('bldg', bldgSource());
+      map.addLayer(bldgLayer());
+      renderNote(); renderStats(); syncUrl();
       if (fly) map.flyTo({ center: DATASETS[NAME].center, zoom: DATASETS[NAME].zoom, pitch: 60, bearing: -20 });
     }
-    function switchDataset(key) { NAME = key; reload(true); }
+    function switchDataset(key) { NAME = key; reloadBldg(true); }
+
+    async function setBaseMap(on) {
+      if (on === baseMap) return;
+      baseMap = on;
+      map.setStyle(await fullStyle());
+      armLoadingBadge();
+      syncUrl();
+    }
+
+    armLoadingBadge();
 
     map.on('error', (e) => {
       const err = e && e.error ? e.error : e;
       console.error('[map error]', err && err.message ? err.message : err, e && e.sourceId ? `source ${e.sourceId}` : '');
     });
-    map.on('click', 'fill-extrusion-bldg', (e) => {
+    map.on('click', LAYER, (e) => {
       const p = e.features[0].properties;
       new maplibregl.Popup().setLngLat(e.lngLat)
         .setHTML(`kind ${p.kind}<br>天面 ${(p.z_cm / 100).toFixed(2)} m / 底面 ${(p.zb_cm / 100).toFixed(2)} m<br>lod ${p.lod}`)
