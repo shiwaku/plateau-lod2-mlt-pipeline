@@ -1,6 +1,6 @@
 # LOD3 / LOD4 を MLT にする実験（2026-09-20）
 
-[Issue #4](https://github.com/shiwaku/plateau-lod2-mlt-pipeline/issues/4) の「本パイプラインでは LOD3 / LOD4 を表現できない」という結論を、
+[Issue #4](https://github.com/shiwaku/plateau-mlt-pipeline/issues/4) の「本パイプラインでは LOD3 / LOD4 を表現できない」という結論を、
 実データで確かめた記録。千代田区 LOD2 の本番出力（`dist/chiyoda-lod2.*`）は変えず、実験用の変換スクリプトとタイルを別に追加した。
 
 - 変換: [`scripts/citygml2geojson_surfaces.py`](../scripts/citygml2geojson_surfaces.py)（実験用。本番の `citygml2geojson.py` は変更なし）

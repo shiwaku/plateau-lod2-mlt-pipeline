@@ -1,4 +1,4 @@
-# plateau-lod2-mlt-pipeline 設計書
+# plateau-mlt-pipeline 設計書
 
 PLATEAU の CityGML（建築物 LOD2）から MapLibre Tile（MLT）と PMTiles を生成するパイプラインの設計書。
 [indigo-lab/plateau-lod2-mvt](https://github.com/indigo-lab/plateau-lod2-mvt)（2020 年度・東京 23 区・MVT ディレクトリ配信）を、
@@ -398,7 +398,7 @@ MapLibre GL JS 6.10.0 + pmtiles.js 4.5.0 のビューア（`index.html`）で、
 
 未実施: `--tessellate` の比較、QGIS プラグインでの確認。
 
-GitHub Pages（<https://shiwaku.github.io/plateau-lod2-mlt-pipeline/>）では、index が 200、MLT PMTiles への Range リクエストが 206 で返ることを確認した。
+GitHub Pages（<https://shiwaku.github.io/plateau-mlt-pipeline/>）では、index が 200、MLT PMTiles への Range リクエストが 206 で返ることを確認した。
 
 ### 8.4 ディレクトリ出力を既定から外した判断（2026-09-19）
 
