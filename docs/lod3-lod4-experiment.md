@@ -43,6 +43,10 @@
 
 PLATEAU は LOD2 と LOD3 の外殻を別々の `boundedBy` 要素で持つため、面の種類ごとに最上位 LOD だけを残して二重の外殻を避ける（竹芝は屋根だけ LOD2、他は LOD4 という構成なので「種類ごと」が必要）。
 
+規則の全体を断面・平面でまとめたもの:
+
+![LOD3 / LOD4 の面を 2D タイルに落とす変換規則](img/surfaces-conversion.svg)
+
 ### 2.3 タイル化
 
 `scripts/build_tiles.sh` に環境変数 `TIPPE_EXTRA` を追加し（本番の挙動は不変）、`--attribute-type=zb_cm:int` を渡した。ズームは 12〜17。

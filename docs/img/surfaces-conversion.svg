@@ -1,0 +1,322 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1560" viewBox="0 0 900 1560" role="img" aria-labelledby="ttl dsc">
+  <title id="ttl">citygml2geojson_surfaces.py の変換規則（LOD3 の外殻と LOD4 の室）</title>
+  <desc id="dsc">LOD3 / LOD4 の CityGML を 2D ポリゴンと z_cm / zb_cm に変換する規則の図。面を法線の z 成分で上向き・下向き・壁に分類し、上向きの天面ごとに、2D の重なりが 50% 以上ある直下の下向き面を底面として対応付ける。LOD3 の外殻では庇・セットバック・バルコニーが段差のある箱になり、LOD4 では室（Room）が階ごとの箱になる。</desc>
+
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif; fill: #24221e; }
+    .h1 { font-size: 19px; font-weight: 700; }
+    .h2 { font-size: 12.5px; fill: #6b665d; }
+    .pt { font-size: 15px; font-weight: 700; }
+    .ps { font-size: 11.5px; fill: #6b665d; }
+    .lb { font-size: 11.5px; fill: #3c3830; }
+    .lbw { font-size: 11px; fill: #ffffff; font-weight: 600; }
+    .sm { font-size: 11px; fill: #55504a; }
+    .cap { font-size: 11.5px; font-weight: 700; fill: #3c3830; }
+    .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 11px; fill: #3c3830; }
+    .face { stroke-width: 7; stroke-linecap: round; fill: none; }
+    .facs { stroke-width: 5; stroke-linecap: round; fill: none; }
+    .ghost { stroke: #cdc7bc; stroke-width: 5; stroke-linecap: round; fill: none; }
+    .pair { stroke: #b1503c; stroke-width: 1.6; stroke-dasharray: 5 4; fill: none; }
+  </style>
+
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#24221e"/>
+    </marker>
+    <marker id="ahd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#b1503c"/>
+    </marker>
+    <marker id="ahb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8d8779"/>
+    </marker>
+    <pattern id="hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <path d="M0,0 L0,7" stroke="#b1503c" stroke-width="2"/>
+    </pattern>
+    <g id="ground">
+      <path d="M0,300 L300,300" stroke="#9a948a" stroke-width="2.5"/>
+      <g stroke="#bdb7ac" stroke-width="1.6">
+        <path d="M6,300 L0,310"/><path d="M26,300 L20,310"/><path d="M46,300 L40,310"/>
+        <path d="M66,300 L60,310"/><path d="M86,300 L80,310"/><path d="M106,300 L100,310"/>
+        <path d="M126,300 L120,310"/><path d="M146,300 L140,310"/><path d="M166,300 L160,310"/>
+        <path d="M186,300 L180,310"/><path d="M206,300 L200,310"/><path d="M226,300 L220,310"/>
+        <path d="M246,300 L240,310"/><path d="M266,300 L260,310"/><path d="M286,300 L280,310"/>
+        <path d="M306,300 L300,310"/>
+      </g>
+    </g>
+    <!-- LOD3 outer shell: podium + tower + canopy -->
+    <g id="shell3">
+      <path d="M30,300 L30,190 L80,190 L80,60 L170,60 L170,190 L210,190 L210,300 Z"/>
+      <path d="M210,225 L270,225 L270,237 L210,237 Z"/>
+    </g>
+    <!-- LOD4: three stacked room solids inside a shell -->
+    <g id="shell4">
+      <path d="M40,300 L40,55 L260,55 L260,300 Z"/>
+    </g>
+  </defs>
+
+  <rect width="900" height="1560" fill="#ffffff"/>
+
+  <text class="h1" x="30" y="34">LOD3 / LOD4 の面を 2D タイルに落とす</text>
+  <text class="h2" x="30" y="56">scripts/citygml2geojson_surfaces.py（<tspan class="mono" style="font-size:12px">--mode horizontal</tspan>）— 外殻と室を同じ規則で「段差のある箱」にする</text>
+
+  <!-- ==================== (1) classify ==================== -->
+  <g transform="translate(30,80)">
+    <rect width="400" height="460" rx="8" fill="#fbfaf8" stroke="#e2ded6"/>
+    <text class="pt" x="16" y="28">① 面を向きで分類する</text>
+    <text class="ps" x="16" y="46">外周リングの法線（Newell 法）の z 成分だけで決める</text>
+
+    <g transform="translate(35,58)">
+      <g fill="#f1efea" stroke="#ddd8cf"><use href="#shell3"/></g>
+      <use href="#ground"/>
+
+      <path class="face" d="M80,60 L170,60" stroke="#1d508e"/>
+      <path class="face" d="M30,190 L80,190" stroke="#3c782e"/>
+      <path class="face" d="M170,190 L210,190" stroke="#3c782e"/>
+      <path class="face" d="M210,225 L270,225" stroke="#3c782e"/>
+      <path class="face" d="M210,237 L270,237" stroke="#845c40"/>
+      <g class="face" stroke="#726f62">
+        <path d="M80,60 L80,190"/><path d="M170,60 L170,190"/>
+        <path d="M30,190 L30,300"/><path d="M210,190 L210,300"/><path d="M270,225 L270,237"/>
+      </g>
+
+      <g stroke="#24221e" stroke-width="1.6" marker-end="url(#ah)" fill="none">
+        <path d="M118,55 L118,26"/>
+        <path d="M262,242 L262,271"/>
+        <path d="M174,128 L202,128"/>
+      </g>
+      <text class="sm" x="118" y="18" text-anchor="middle">nz = +1.0</text>
+      <text class="sm" x="264" y="285" text-anchor="middle">nz = −1.0</text>
+      <text class="sm" x="206" y="132">nz = 0</text>
+
+      <text class="lb" x="178" y="50">屋根面</text>
+      <text class="lb" x="36" y="180">低層部の屋上</text>
+      <text class="lb" x="278" y="221">庇の上面</text>
+      <text class="lb" x="278" y="250">庇の裏</text>
+      <text class="lb" x="2" y="326">地面（GroundSurface）</text>
+    </g>
+
+    <g>
+      <rect x="16" y="390" width="13" height="13" rx="2" fill="#1d508e"/>
+      <rect x="33" y="390" width="13" height="13" rx="2" fill="#3c782e"/>
+      <text class="sm" x="54" y="401">上向き nz &gt; +0.3 … 天面の候補</text>
+      <rect x="16" y="412" width="13" height="13" rx="2" fill="#845c40"/>
+      <rect x="33" y="412" width="13" height="13" rx="2" fill="#9a948a"/>
+      <text class="sm" x="54" y="423">下向き nz &lt; −0.3 … 底面の候補</text>
+      <rect x="16" y="434" width="13" height="13" rx="2" fill="#726f62"/>
+      <text class="sm" x="54" y="445">壁 |nz| ≤ 0.3 … 2D 投影で面積 0 になり除外される</text>
+    </g>
+  </g>
+
+  <!-- ==================== (2) overlap test ==================== -->
+  <g transform="translate(470,80)">
+    <rect width="400" height="460" rx="8" fill="#fbfaf8" stroke="#e2ded6"/>
+    <text class="pt" x="16" y="28">② 天面ごとに底面を選ぶ</text>
+    <text class="ps" x="16" y="46">上から見た重なりで判定する（同じグループの中だけ）</text>
+
+    <g transform="translate(35,70)">
+      <text class="sm" x="0" y="0">平面図（上から見た形）</text>
+
+      <rect x="100" y="60" width="180" height="110" fill="#f6efe9" stroke="#845c40" stroke-width="2.5"/>
+      <rect x="10" y="110" width="100" height="90" fill="#f6efe9" stroke="#845c40" stroke-width="2.5"/>
+      <rect x="100" y="60" width="150" height="90" fill="url(#hatch)" opacity="0.55"/>
+      <rect x="70" y="110" width="40" height="40" fill="url(#hatch)" opacity="0.55"/>
+      <rect x="70" y="40" width="180" height="110" fill="none" stroke="#3c782e" stroke-width="3" stroke-dasharray="7 4"/>
+
+      <text class="lb" x="74" y="34" fill="#3c782e">天面 T</text>
+      <text class="lb" x="232" y="186" fill="#845c40">候補 A</text>
+      <text class="lb" x="14" y="216" fill="#845c40">候補 B</text>
+      <text class="sm" x="175" y="108" text-anchor="middle" fill="#b1503c" style="font-weight:700">A ∩ T = 68% → 採用</text>
+      <text class="sm" x="14" y="234" fill="#b1503c">B ∩ T = 8% → 除外</text>
+
+      <g transform="translate(0,258)">
+        <text class="sm" x="0" y="0">1. 自分より低い（zmid の差 &gt; 0.05 m）候補だけ見る</text>
+        <text class="sm" x="0" y="20">2. 2D の交差面積が天面の 50% 以上（<tspan class="mono">--overlap</tspan>）</text>
+        <text class="sm" x="0" y="40">3. 残った中で最も高い面を底面にする → ここでは A</text>
+        <text class="sm" x="0" y="60">4. 1 つも無ければ基準面（外殻）／室の最低 z から押し出す</text>
+      </g>
+    </g>
+
+    <g>
+      <text class="sm" x="16" y="418">グループ＝外殻ごと、<tspan class="mono">--rooms</tspan> では室ごと。隣の室の床とは</text>
+      <text class="sm" x="16" y="440">対応づかない。探索は下向き面の R-tree（STRtree）で行う</text>
+    </g>
+  </g>
+
+  <!-- ==================== (3) LOD3 shell ==================== -->
+  <g transform="translate(30,560)">
+    <rect width="400" height="460" rx="8" fill="#fbfaf8" stroke="#e2ded6"/>
+    <text class="pt" x="16" y="28">③ LOD3 — 外殻の天面を押し出す</text>
+    <text class="ps" x="16" y="46">庇・セットバック・バルコニーが段差として出る（虎ノ門・曳舟）</text>
+
+    <g transform="translate(35,58)">
+      <g fill="#f4f2ee" stroke="#e4e0d8"><use href="#shell3"/></g>
+      <use href="#ground"/>
+
+      <g class="ghost">
+        <path d="M80,60 L80,190"/><path d="M170,60 L170,190"/>
+        <path d="M30,190 L30,300"/><path d="M210,190 L210,300"/><path d="M270,225 L270,237"/>
+      </g>
+      <path class="face" d="M80,60 L170,60" stroke="#1d508e"/>
+      <path class="face" d="M30,190 L80,190" stroke="#3c782e"/>
+      <path class="face" d="M170,190 L210,190" stroke="#3c782e"/>
+      <path class="face" d="M210,225 L270,225" stroke="#3c782e"/>
+      <path class="face" d="M210,237 L270,237" stroke="#845c40"/>
+
+      <g class="pair" marker-end="url(#ahd)">
+        <path d="M125,68 L125,292"/>
+        <path d="M55,198 L55,292"/>
+        <path d="M190,198 L190,292"/>
+        <path d="M240,229 L240,231"/>
+      </g>
+
+      <text class="sm" x="132" y="150" fill="#b1503c">直下の下向き面は地面だけ</text>
+      <text class="sm" x="132" y="166" fill="#b1503c">→ 底面 = 基準面（0）</text>
+      <text class="sm" x="278" y="222" fill="#b1503c">直下は庇の裏</text>
+      <text class="sm" x="278" y="238" fill="#b1503c">重なり 100%</text>
+      <text class="sm" x="278" y="256">→ 薄い板になる</text>
+      <text class="lb" x="2" y="326">基準面 = GroundSurface の z の (max+min)/2</text>
+    </g>
+
+    <g>
+      <text class="sm" x="16" y="401">この 4 枚が 4 フィーチャになる。壁・窓・扉は 1 枚も残らない</text>
+      <text class="sm" x="16" y="423">底面が見つからない天面は基準面から押し出されるので、空中の庇が</text>
+      <text class="sm" x="16" y="441">柱のように見える箇所がある（虎ノ門で 1,179 / 12,179 枚）</text>
+    </g>
+  </g>
+
+  <!-- ==================== (4) LOD4 rooms ==================== -->
+  <g transform="translate(470,560)">
+    <rect width="400" height="460" rx="8" fill="#fbfaf8" stroke="#e2ded6"/>
+    <text class="pt" x="16" y="28">④ LOD4 — 室を室ごとに箱にする</text>
+    <text class="ps" x="16" y="46">同じ規則で扱える（竹芝の BIM モデル、新宿の地下街）</text>
+
+    <g transform="translate(35,58)">
+      <g fill="#f4f2ee" stroke="#e4e0d8"><use href="#shell4"/></g>
+      <use href="#ground"/>
+      <g class="ghost"><path d="M40,55 L40,300"/><path d="M260,55 L260,300"/></g>
+      <path class="facs" d="M40,55 L260,55" stroke="#1d508e"/>
+
+      <g>
+        <path class="facs" d="M55,215 L245,215" stroke="#845c40"/>
+        <path class="facs" d="M55,292 L245,292" stroke="#3c782e"/>
+        <path class="facs" d="M55,138 L245,138" stroke="#845c40"/>
+        <path class="facs" d="M55,205 L245,205" stroke="#3c782e"/>
+        <path class="facs" d="M55,72 L245,72" stroke="#845c40"/>
+        <path class="facs" d="M55,128 L245,128" stroke="#3c782e"/>
+      </g>
+      <g class="ghost" stroke="#d8d2c6" stroke-width="3">
+        <path d="M55,72 L55,128"/><path d="M245,72 L245,128"/>
+        <path d="M55,138 L55,205"/><path d="M245,138 L245,205"/>
+        <path d="M55,215 L55,292"/><path d="M245,215 L245,292"/>
+      </g>
+
+      <g class="pair" marker-end="url(#ahd)">
+        <path d="M150,80 L150,120"/>
+        <path d="M150,146 L150,197"/>
+        <path d="M150,223 L150,284"/>
+      </g>
+
+      <text class="sm" x="252" y="68">天井 → 天面</text>
+      <text class="sm" x="252" y="104">室 1</text>
+      <text class="sm" x="252" y="136">床 → 底面</text>
+      <text class="sm" x="252" y="176">室 2</text>
+      <text class="sm" x="252" y="258">室 3</text>
+      <text class="lb" x="2" y="326">外殻（屋根・壁）は室とは別のグループとして扱う</text>
+    </g>
+
+    <g>
+      <text class="sm" x="16" y="401">Room ソリッドの外向き法線は、天井で上・床で下を向く。だから</text>
+      <text class="sm" x="16" y="419">外殻と室に同じ判定を当てられる（<tspan class="mono">--rooms</tspan> は Room 単位に切替）</text>
+      <text class="sm" x="16" y="445">竹芝は屋根だけ LOD2、壁と床が LOD4。LOD は面の種類ごとに選ぶ</text>
+    </g>
+  </g>
+
+  <!-- ==================== (5) output ==================== -->
+  <g transform="translate(30,1040)">
+    <rect width="400" height="460" rx="8" fill="#fbfaf8" stroke="#e2ded6"/>
+    <text class="pt" x="16" y="28">⑤ 2D ポリゴン + 整数属性として出力する</text>
+    <text class="ps" x="16" y="46">押し出しは MapLibre の fill-extrusion-base / -height が行う</text>
+
+    <g transform="translate(18,70) scale(0.5)">
+      <use href="#ground"/>
+      <rect x="80" y="60" width="90" height="240" fill="#1d508e" opacity="0.9"/>
+      <rect x="30" y="190" width="50" height="110" fill="#3c782e" opacity="0.9"/>
+      <rect x="170" y="190" width="40" height="110" fill="#3c782e" opacity="0.9"/>
+      <rect x="210" y="225" width="60" height="12" fill="#3c782e" opacity="0.9"/>
+    </g>
+    <g transform="translate(200,70) scale(0.5)">
+      <use href="#ground"/>
+      <rect x="55" y="215" width="190" height="77" fill="#f8df4a" stroke="#a98f14" stroke-width="2"/>
+      <rect x="55" y="138" width="190" height="67" fill="#f8df4a" stroke="#a98f14" stroke-width="2"/>
+      <rect x="55" y="72" width="190" height="56" fill="#f8df4a" stroke="#a98f14" stroke-width="2"/>
+    </g>
+
+    <text class="cap" x="93" y="252" text-anchor="middle">LOD3 の外殻 → 段差のある箱</text>
+    <text class="cap" x="275" y="252" text-anchor="middle">LOD4 の室 → 階ごとの箱</text>
+    <text class="sm" x="93" y="269" text-anchor="middle">屋根 z_cm 2400 / zb_cm 0</text>
+    <text class="sm" x="93" y="285" text-anchor="middle">庇 z_cm 750 / zb_cm 630</text>
+    <text class="sm" x="275" y="269" text-anchor="middle">室 1 z_cm 850 / zb_cm 80</text>
+    <text class="sm" x="275" y="285" text-anchor="middle">室 2 z_cm 1620 / zb_cm 950</text>
+
+    <g>
+      <text class="sm" x="16" y="322">1 フィーチャ = 上向きの面 1 枚。属性は 4 つだけ</text>
+      <text class="mono" x="28" y="344">z_cm / zb_cm（cm 単位の整数）, kind, lod</text>
+      <text class="sm" x="16" y="372">cm 単位の整数にしているのは、tippecanoe が数値を値ごとに</text>
+      <text class="sm" x="28" y="390">sint / float / double で書き分け、<tspan class="mono">mlt convert</tspan> がそれを</text>
+      <text class="sm" x="28" y="408">文字列列に変換してしまうため</text>
+      <text class="sm" x="16" y="436">2D 面積 0.1 m² 未満（<tspan class="mono">--min-area</tspan>）の面は全モードで除外する</text>
+    </g>
+  </g>
+
+  <!-- ==================== (6) modes and limits ==================== -->
+  <g transform="translate(470,1040)">
+    <rect width="400" height="460" rx="8" fill="#fbfaf8" stroke="#e2ded6"/>
+    <text class="pt" x="16" y="28">⑥ モード別の出力と、この経路の限界</text>
+    <text class="ps" x="16" y="46">フィーチャ数は虎ノ門 LOD3（港区 2023、102 棟）の実測値</text>
+
+    <g transform="translate(25,66) scale(0.4)">
+      <use href="#ground"/>
+      <rect x="80" y="60" width="90" height="240" fill="#1d508e" opacity="0.9"/>
+    </g>
+    <g transform="translate(150,66) scale(0.4)">
+      <use href="#ground"/>
+      <rect x="80" y="60" width="90" height="240" fill="#1d508e" opacity="0.9"/>
+      <rect x="30" y="190" width="50" height="110" fill="#3c782e" opacity="0.9"/>
+      <rect x="170" y="190" width="40" height="110" fill="#3c782e" opacity="0.9"/>
+      <rect x="210" y="225" width="60" height="12" fill="#3c782e" opacity="0.9"/>
+    </g>
+    <g transform="translate(275,66) scale(0.4)">
+      <use href="#ground"/>
+      <g stroke="#cdc7bc" stroke-width="4" stroke-dasharray="6 7">
+        <path d="M80,60 L80,190"/><path d="M170,60 L170,190"/>
+        <path d="M30,190 L30,300"/><path d="M210,190 L210,300"/>
+      </g>
+      <rect x="80" y="55" width="90" height="10" fill="#1d508e" opacity="0.9"/>
+      <rect x="30" y="185" width="50" height="10" fill="#3c782e" opacity="0.9"/>
+      <rect x="170" y="185" width="40" height="10" fill="#3c782e" opacity="0.9"/>
+      <rect x="210" y="220" width="60" height="10" fill="#3c782e" opacity="0.9"/>
+      <rect x="210" y="232" width="60" height="10" fill="#845c40" opacity="0.9"/>
+    </g>
+
+    <text class="cap" x="85" y="212" text-anchor="middle">roof</text>
+    <text class="sm" x="85" y="229" text-anchor="middle">屋根面のみ 2,647</text>
+    <text class="cap" x="210" y="212" text-anchor="middle">horizontal</text>
+    <text class="sm" x="210" y="229" text-anchor="middle">上向き面すべて 12,179</text>
+    <text class="cap" x="335" y="212" text-anchor="middle">all</text>
+    <text class="sm" x="335" y="229" text-anchor="middle">壁・開口部も 22,714</text>
+
+    <g>
+      <text class="sm" x="16" y="272">・<tspan style="font-weight:700">roof</tspan> は現行ルールをそのまま当てたもの。LOD2 と見分けがつかない</text>
+      <text class="sm" x="16" y="296">・<tspan style="font-weight:700">horizontal</tspan> だけが LOD3 / LOD4 らしさを残すが、フィーチャ数と</text>
+      <text class="sm" x="28" y="314">容量は roof の 4〜5 倍になる</text>
+      <text class="sm" x="16" y="338">・<tspan style="font-weight:700">all</tspan> では鉛直な面が 2D 投影で線になって消える</text>
+      <text class="sm" x="28" y="356">（壁 99.2%、窓 99.9%、扉 100%）。LOD3 の意味はここで失われる</text>
+      <text class="sm" x="16" y="390">・地下街 LOD4.1 は <tspan class="mono">fill-extrusion</tspan> が 0 未満を描けないため、</text>
+      <text class="sm" x="28" y="408">構造物の最下面を 0 とみなして地上に持ち上げている（<tspan class="mono">--ref min</tspan>）</text>
+      <text class="sm" x="16" y="436">・竹芝の室は外殻に隠れる。ビューアの「外殻を隠す」で <tspan class="mono">kind</tspan> を</text>
+      <text class="sm" x="28" y="454">floor / ceiling / room に絞ると見える</text>
+    </g>
+  </g>
+
+  <text class="sm" x="30" y="1538">断面・平面はいずれも説明用の模式図。寸法は 1 px = 0.1 m として読んだときの例。</text>
+</svg>
